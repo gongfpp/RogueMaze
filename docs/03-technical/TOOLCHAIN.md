@@ -52,10 +52,32 @@ Godot 是便携程序，不需要安装到系统：
 | --- | --- | --- |
 | Windows x86_64 | 本机运行测试和导出 `.exe` | Beta 前补真机/多分辨率回归 |
 | Linux x86_64 | 可从 Windows 使用官方模板导出 | 仍需在真实 Linux/CI 中启动验证 |
-| Android | Godot 模板和 JDK 17 已就绪 | Android SDK、Platform Tools、Build Tools、NDK；真机 |
-| iOS | 规则和工程可共用，官方模板已就绪 | 必须有 macOS、Xcode、Team ID、签名和 iPhone/iPad |
+| Android | arm64 APK 预设、Godot 模板、JDK 17、检查/构建脚本已就绪 | 有权主体接受 Android SDK 许可后安装锁定 SDK；生成 APK 并上真机 |
+| iOS | arm64 Xcode 工程预设、临时 Team ID 注入脚本已就绪 | 必须有 macOS、Xcode、Team ID、签名和 iPhone/iPad |
 
-Android 当前官方要求包括 Platform Tools 35.0.0+、Build Tools 35.0.1、Platform 35、CMake 3.10.2 和 NDK r28b。等进入 Android 构建工作包时安装到 `.tools/android-sdk`，不写入系统目录。
+Android 当前官方要求包括 Platform Tools 35.0.0+、Build Tools 35.0.1、Platform 35、CMake 3.10.2 和 NDK r28b。获得许可确认后安装到 `.tools/android-sdk`，不写入系统目录。
+
+查看当前平台缺项：
+
+```powershell
+.\scripts\check_platforms.ps1
+```
+
+有权接受 Android SDK 许可的人阅读官方协议后，可运行：
+
+```powershell
+.\scripts\setup_android_sdk.ps1 -AcceptAndroidSdkLicense
+.\scripts\build_releases.ps1 -Android
+```
+
+macOS 发布机设置 10 位 Apple Team ID 后运行：
+
+```bash
+export GODOT_IOS_TEAM_ID=ABCDE12XYZ
+./scripts/build_ios.sh
+```
+
+Android 发布版 AAB 需要 Gradle 构建和团队 release keystore；当前自动化只生成本地调试 APK，绝不把 keystore 或密码提交到仓库。
 
 ## 为什么暂时不用 C#
 

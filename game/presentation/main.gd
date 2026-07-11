@@ -22,6 +22,7 @@ var restart_rect := Rect2()
 var reward_rects: Array[Rect2] = []
 var sound_rect := Rect2()
 var motion_rect := Rect2()
+var safe_rect := Rect2()
 var cell_size := 0.0
 var dragging_card := false
 var drag_position := Vector2.ZERO
@@ -161,38 +162,56 @@ func _try_place(cell: Vector2i) -> void:
 
 
 func _recalculate_layout() -> void:
-	var padding := clampf(size.x * 0.045, 18.0, 40.0)
+	safe_rect = _mobile_safe_rect()
+	var padding := clampf(safe_rect.size.x * 0.045, 18.0, 40.0)
 	cell_size = floorf(minf(
-		(size.x - padding * 2.0) / float(GameSession.BOARD_SIZE.x),
-		(size.y * 0.43) / float(GameSession.BOARD_SIZE.y),
+		(safe_rect.size.x - padding * 2.0) / float(GameSession.BOARD_SIZE.x),
+		(safe_rect.size.y * 0.43) / float(GameSession.BOARD_SIZE.y),
 	))
 	var board_size := Vector2(cell_size * GameSession.BOARD_SIZE.x, cell_size * GameSession.BOARD_SIZE.y)
-	board_rect = Rect2(Vector2((size.x - board_size.x) * 0.5, size.y * 0.17), board_size)
+	board_rect = Rect2(Vector2(
+		safe_rect.position.x + (safe_rect.size.x - board_size.x) * 0.5,
+		safe_rect.position.y + safe_rect.size.y * 0.17,
+	), board_size)
 
-	var card_gap := clampf(size.x * 0.018, 8.0, 16.0)
-	var card_width := (size.x - padding * 2.0 - card_gap * 3.0) / 4.0
-	var card_height := clampf(size.y * 0.15, 96.0, 128.0)
-	var hand_y := maxf(board_rect.end.y + 70.0, size.y - card_height - 24.0)
-	hand_y = minf(hand_y, size.y - card_height - 16.0)
+	var card_gap := clampf(safe_rect.size.x * 0.018, 8.0, 16.0)
+	var card_width := (safe_rect.size.x - padding * 2.0 - card_gap * 3.0) / 4.0
+	var card_height := clampf(safe_rect.size.y * 0.15, 96.0, 128.0)
+	var hand_y := maxf(board_rect.end.y + 70.0, safe_rect.end.y - card_height - 24.0)
+	hand_y = minf(hand_y, safe_rect.end.y - card_height - 16.0)
 	card_rects.clear()
 	for index in GameSession.HAND_SIZE:
 		card_rects.append(Rect2(
-			Vector2(padding + (card_width + card_gap) * index, hand_y),
+			Vector2(safe_rect.position.x + padding + (card_width + card_gap) * index, hand_y),
 			Vector2(card_width, card_height),
 		))
-	rotate_rect = Rect2(Vector2(padding, hand_y - 54.0), Vector2(150.0, 42.0))
-	sound_rect = Rect2(Vector2(padding + 160.0, hand_y - 54.0), Vector2(104.0, 42.0))
-	motion_rect = Rect2(Vector2(padding + 274.0, hand_y - 54.0), Vector2(maxf(92.0, size.x - padding * 2.0 - 274.0), 42.0))
-	pause_rect = Rect2(Vector2(size.x - padding - 116.0, 34.0), Vector2(116.0, 46.0))
-	restart_rect = Rect2(Vector2((size.x - 220.0) * 0.5, size.y * 0.58), Vector2(220.0, 58.0))
+	var left := safe_rect.position.x + padding
+	rotate_rect = Rect2(Vector2(left, hand_y - 54.0), Vector2(150.0, 42.0))
+	sound_rect = Rect2(Vector2(left + 160.0, hand_y - 54.0), Vector2(104.0, 42.0))
+	motion_rect = Rect2(Vector2(left + 274.0, hand_y - 54.0), Vector2(maxf(92.0, safe_rect.size.x - padding * 2.0 - 274.0), 42.0))
+	pause_rect = Rect2(Vector2(safe_rect.end.x - padding - 116.0, safe_rect.position.y + 34.0), Vector2(116.0, 46.0))
+	restart_rect = Rect2(Vector2(safe_rect.position.x + (safe_rect.size.x - 220.0) * 0.5, safe_rect.position.y + safe_rect.size.y * 0.58), Vector2(220.0, 58.0))
 	reward_rects.clear()
 	var reward_gap := 10.0
-	var reward_width := (size.x - padding * 2.0 - reward_gap * 2.0) / 3.0
+	var reward_width := (safe_rect.size.x - padding * 2.0 - reward_gap * 2.0) / 3.0
 	for index in 3:
 		reward_rects.append(Rect2(
-			Vector2(padding + index * (reward_width + reward_gap), size.y * 0.49),
+			Vector2(left + index * (reward_width + reward_gap), safe_rect.position.y + safe_rect.size.y * 0.49),
 			Vector2(reward_width, 116.0),
 		))
+
+
+func _mobile_safe_rect() -> Rect2:
+	if OS.get_name() not in ["Android", "iOS"]:
+		return Rect2(Vector2.ZERO, size)
+	var window_size := Vector2(DisplayServer.window_get_size())
+	if window_size.x <= 0.0 or window_size.y <= 0.0:
+		return Rect2(Vector2.ZERO, size)
+	var platform_safe := DisplayServer.get_display_safe_area()
+	if platform_safe.size.x <= 0 or platform_safe.size.y <= 0:
+		return Rect2(Vector2.ZERO, size)
+	var scale := Vector2(size.x / window_size.x, size.y / window_size.y)
+	return Rect2(Vector2(platform_safe.position) * scale, Vector2(platform_safe.size) * scale)
 
 
 func _draw() -> void:
@@ -206,7 +225,7 @@ func _draw() -> void:
 
 
 func _draw_header() -> void:
-	_draw_text(Vector2(28.0, 56.0), "ROGUE MAZE", 30, SELECTED_COLOR)
+	_draw_text(safe_rect.position + Vector2(28.0, 56.0), "ROGUE MAZE", 30, SELECTED_COLOR)
 	var node_title: String = session.content.node(session.node_index).get("title", "")
 	var status := "%s · BUILD THE ROAD" % node_title
 	if session.countdown > 0.0:
