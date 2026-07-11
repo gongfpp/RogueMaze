@@ -2,14 +2,22 @@ class_name GameSession
 extends RefCounted
 
 const PLAYING: StringName = &"PLAYING"
+const REWARD: StringName = &"REWARD"
 const WON: StringName = &"WON"
 const LOST: StringName = &"LOST"
+
+const SPIKES: StringName = &"SPIKES"
+const FALLING_ROCK: StringName = &"FALLING_ROCK"
+const ROAD_MISSING: StringName = &"ROAD_MISSING"
+const ROCK_HIT: StringName = &"ROCK_HIT"
+const NO_HEALTH: StringName = &"NO_HEALTH"
 
 const BOARD_SIZE := Vector2i(8, 5)
 const START := Vector2i(0, 2)
 const FINISH := Vector2i(7, 2)
 const HAND_SIZE := 4
 const START_COUNTDOWN := 4.0
+const NODE_COUNT := 3
 
 const STARTER_DECK: Array[StringName] = [
 	RoadCatalog.STRAIGHT,
@@ -25,12 +33,19 @@ const STARTER_DECK: Array[StringName] = [
 var board: BoardState
 var deck: DeckState
 var runner: RunnerState
+var run_deck: Array[StringName] = []
 var hand: Array[StringName] = []
 var selected_card_index := 0
 var selected_quarter_turns := 0
 var state: StringName = PLAYING
 var paused := false
 var countdown := START_COUNTDOWN
+var node_index := 0
+var health := 3
+var max_health := 3
+var hazards: Dictionary = {}
+var reward_options: Array[StringName] = []
+var failure_reason: StringName = &""
 
 
 func _init() -> void:
@@ -38,9 +53,16 @@ func _init() -> void:
 
 
 func reset() -> void:
+	run_deck.assign(STARTER_DECK)
+	node_index = 0
+	health = max_health
+	_start_node()
+
+
+func _start_node() -> void:
 	board = BoardState.new(BOARD_SIZE.x, BOARD_SIZE.y)
 	board.place(RoadCatalog.get_definition(RoadCatalog.STRAIGHT), START, 0, true)
-	deck = DeckState.new(STARTER_DECK, DeckState.Mode.FIXED_CYCLE)
+	deck = DeckState.new(run_deck, DeckState.Mode.FIXED_CYCLE)
 	hand.clear()
 	for index in HAND_SIZE:
 		hand.append(deck.draw())
@@ -50,6 +72,24 @@ func reset() -> void:
 	state = PLAYING
 	paused = false
 	countdown = START_COUNTDOWN
+	reward_options.clear()
+	failure_reason = &""
+	_configure_hazards()
+
+
+func _configure_hazards() -> void:
+	hazards.clear()
+	if node_index >= 1:
+		hazards[Vector2i(3, 2)] = {
+			"type": SPIKES,
+			"spent": false,
+		}
+	if node_index >= 2:
+		hazards[Vector2i(5, 2)] = {
+			"type": FALLING_ROCK,
+			"timer": 8.0,
+			"triggered": false,
+		}
 
 
 func update(delta: float) -> void:
@@ -58,11 +98,62 @@ func update(delta: float) -> void:
 	if countdown > 0.0:
 		countdown = maxf(0.0, countdown - delta)
 		return
+	_update_hazards(delta)
+	if state != PLAYING:
+		return
 	runner.update(delta, board, FINISH)
+	if runner.entered_cell:
+		_apply_entered_cell_hazard(runner.last_entered_position)
+	if state != PLAYING:
+		return
 	if runner.status == RunnerState.REACHED:
-		state = WON
+		if node_index + 1 >= NODE_COUNT:
+			state = WON
+		else:
+			state = REWARD
+			reward_options.assign([RoadCatalog.BRIDGE, RoadCatalog.STRAIGHT, RoadCatalog.UP_RAMP])
 	elif runner.status == RunnerState.FAILED:
+		failure_reason = ROAD_MISSING
 		state = LOST
+
+
+func _update_hazards(delta: float) -> void:
+	for position in hazards:
+		var hazard: Dictionary = hazards[position]
+		if hazard.type != FALLING_ROCK or hazard.triggered:
+			continue
+		hazard.timer = maxf(0.0, hazard.timer - delta)
+		if hazard.timer > 0.0:
+			continue
+		hazard.triggered = true
+		board.remove(position)
+		if runner.current_position == position or (runner.has_target and runner.target_position == position):
+			failure_reason = ROCK_HIT
+			state = LOST
+
+
+func _apply_entered_cell_hazard(position: Vector2i) -> void:
+	if not hazards.has(position):
+		return
+	var hazard: Dictionary = hazards[position]
+	if hazard.type == SPIKES and not hazard.spent:
+		hazard.spent = true
+		health -= 1
+		if health <= 0:
+			failure_reason = NO_HEALTH
+			state = LOST
+	elif hazard.type == FALLING_ROCK and hazard.triggered:
+		failure_reason = ROCK_HIT
+		state = LOST
+
+
+func choose_reward(index: int) -> bool:
+	if state != REWARD or index < 0 or index >= reward_options.size():
+		return false
+	run_deck.append(reward_options[index])
+	node_index += 1
+	_start_node()
+	return true
 
 
 func select_card(index: int) -> bool:

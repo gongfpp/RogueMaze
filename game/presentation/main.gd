@@ -17,6 +17,7 @@ var card_rects: Array[Rect2] = []
 var rotate_rect := Rect2()
 var pause_rect := Rect2()
 var restart_rect := Rect2()
+var reward_rects: Array[Rect2] = []
 var cell_size := 0.0
 var dragging_card := false
 var drag_position := Vector2.ZERO
@@ -82,7 +83,12 @@ func _gui_input(event: InputEvent) -> void:
 
 
 func _begin_press(position: Vector2) -> void:
-	if restart_rect.has_point(position) and session.state != GameSession.PLAYING:
+	if session.state == GameSession.REWARD:
+		for index in reward_rects.size():
+			if reward_rects[index].has_point(position):
+				session.choose_reward(index)
+				return
+	if restart_rect.has_point(position) and session.state in [GameSession.WON, GameSession.LOST]:
 		session.reset()
 		return
 	if pause_rect.has_point(position):
@@ -140,12 +146,21 @@ func _recalculate_layout() -> void:
 	rotate_rect = Rect2(Vector2(padding, hand_y - 54.0), Vector2(150.0, 42.0))
 	pause_rect = Rect2(Vector2(size.x - padding - 116.0, 34.0), Vector2(116.0, 46.0))
 	restart_rect = Rect2(Vector2((size.x - 220.0) * 0.5, size.y * 0.58), Vector2(220.0, 58.0))
+	reward_rects.clear()
+	var reward_gap := 10.0
+	var reward_width := (size.x - padding * 2.0 - reward_gap * 2.0) / 3.0
+	for index in 3:
+		reward_rects.append(Rect2(
+			Vector2(padding + index * (reward_width + reward_gap), size.y * 0.49),
+			Vector2(reward_width, 116.0),
+		))
 
 
 func _draw() -> void:
 	draw_rect(Rect2(Vector2.ZERO, size), BACKGROUND)
 	_draw_header()
 	_draw_board()
+	_draw_tutorial_hint()
 	_draw_hand()
 	_draw_dragged_card()
 	_draw_state_overlay()
@@ -161,6 +176,17 @@ func _draw_header() -> void:
 	if feedback_remaining > 0.0:
 		status = feedback_text
 	_draw_text(Vector2(28.0, 91.0), status, 17, MUTED_TEXT)
+	_draw_text(
+		Vector2(board_rect.position.x, board_rect.position.y - 10.0),
+		"NODE %d/%d  ·  HP %d/%d" % [
+			session.node_index + 1,
+			GameSession.NODE_COUNT,
+			session.health,
+			session.max_health,
+		],
+		13,
+		TEXT_COLOR,
+	)
 	_draw_button(pause_rect, "RESUME" if session.paused else "PAUSE", false)
 
 
@@ -183,6 +209,7 @@ func _draw_board() -> void:
 
 	for cell in session.board.roads:
 		_draw_road(cell, session.board.roads[cell], ROAD_COLOR)
+	_draw_hazards()
 
 	var finish_center := _cell_center(GameSession.FINISH)
 	draw_line(finish_center + Vector2(0, 18), finish_center + Vector2(0, -22), TEXT_COLOR, 3.0)
@@ -226,11 +253,13 @@ func _draw_hand() -> void:
 func _draw_state_overlay() -> void:
 	if session.paused and session.state == GameSession.PLAYING:
 		_draw_center_message("PAUSED", "Tap pause or press Space")
+	elif session.state == GameSession.REWARD:
+		_draw_reward_overlay()
 	elif session.state == GameSession.WON:
-		_draw_center_message("ROUTE COMPLETE", "The runner reached the exit")
+		_draw_center_message("EXPEDITION COMPLETE", "All three road nodes cleared")
 		_draw_button(restart_rect, "PLAY AGAIN", true)
 	elif session.state == GameSession.LOST:
-		_draw_center_message("ROAD BROKEN", "Build farther ahead next time")
+		_draw_center_message("RUN FAILED", _failure_summary())
 		_draw_button(restart_rect, "TRY AGAIN", true)
 
 
@@ -245,6 +274,52 @@ func _draw_dragged_card() -> void:
 		session.selected_quarter_turns,
 		ROAD_COLOR,
 	)
+
+
+func _draw_tutorial_hint() -> void:
+	if session.node_index != 0 or session.state != GameSession.PLAYING or session.board.roads.size() > 1:
+		return
+	var rect := Rect2(Vector2(18, board_rect.end.y + 36), Vector2(size.x - 36, 106))
+	draw_style_box(_rounded_box(Color(0.09, 0.14, 0.21, 0.92), GRID_COLOR, 1.0), rect)
+	_draw_text(rect.position + Vector2(16, 28), "1  Select or drag a road card", 15, TEXT_COLOR)
+	_draw_text(rect.position + Vector2(16, 54), "2  Green cells are legal", 15, Color("78dca5"))
+	_draw_text(rect.position + Vector2(16, 80), "3  Tap ROTATE or press R", 15, TEXT_COLOR)
+
+
+func _draw_hazards() -> void:
+	for position in session.hazards:
+		var hazard: Dictionary = session.hazards[position]
+		var center := _cell_center(position)
+		if hazard.type == GameSession.SPIKES:
+			var spike_color := Color("74424b") if hazard.spent else DANGER_COLOR
+			for offset in [-12.0, 0.0, 12.0]:
+				draw_colored_polygon(PackedVector2Array([
+					center + Vector2(offset - 6.0, 15.0),
+					center + Vector2(offset, -4.0),
+					center + Vector2(offset + 6.0, 15.0),
+				]), spike_color)
+		elif hazard.type == GameSession.FALLING_ROCK:
+			if hazard.triggered:
+				draw_circle(center, cell_size * 0.22, Color("3a2630"))
+				draw_line(center + Vector2(-8, -8), center + Vector2(8, 8), DANGER_COLOR, 3.0)
+				draw_line(center + Vector2(8, -8), center + Vector2(-8, 8), DANGER_COLOR, 3.0)
+			else:
+				draw_circle(center + Vector2(0, -cell_size * 0.22), cell_size * 0.16, Color("b9825a"))
+				_draw_text_centered(center + Vector2(0, cell_size * 0.36), "%.0f" % ceilf(hazard.timer), 12, DANGER_COLOR)
+
+
+func _draw_reward_overlay() -> void:
+	var overlay := Rect2(Vector2(0, size.y * 0.34), Vector2(size.x, size.y * 0.38))
+	draw_rect(overlay, Color(0.03, 0.05, 0.08, 0.96), true)
+	_draw_text_centered(Vector2(size.x * 0.5, overlay.position.y + 46), "CHOOSE A ROAD", 28, SELECTED_COLOR)
+	_draw_text_centered(Vector2(size.x * 0.5, overlay.position.y + 75), "Add one card before the next node", 14, TEXT_COLOR)
+	for index in reward_rects.size():
+		var rect := reward_rects[index]
+		var road_id := session.reward_options[index]
+		var definition := RoadCatalog.get_definition(road_id)
+		draw_style_box(_rounded_box(Color("26374f"), GRID_COLOR, 2.0), rect)
+		_draw_card_road(rect, definition, 0, BRIDGE_COLOR if road_id == RoadCatalog.BRIDGE else ROAD_COLOR)
+		_draw_text_centered(rect.position + Vector2(rect.size.x * 0.5, rect.size.y - 14), _road_label(road_id), 12, TEXT_COLOR)
 
 
 func _draw_center_message(title: String, subtitle: String) -> void:
@@ -315,6 +390,14 @@ func _failure_label(reason: StringName) -> String:
 		BoardState.PORT_MISMATCH: return "Road ports do not match"
 		BoardState.ISOLATED: return "Connect to an existing road"
 		_: return "Cannot place road now"
+
+
+func _failure_summary() -> String:
+	match session.failure_reason:
+		GameSession.ROCK_HIT: return "A falling rock destroyed the route"
+		GameSession.NO_HEALTH: return "The runner lost all health"
+		GameSession.ROAD_MISSING: return "The runner waited too long for a road"
+		_: return "Review the route and try again"
 
 
 func _draw_text(position: Vector2, text: String, font_size: int, color: Color) -> void:

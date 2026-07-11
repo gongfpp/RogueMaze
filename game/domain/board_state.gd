@@ -25,6 +25,10 @@ func road_at(position: Vector2i) -> Dictionary:
 	return roads.get(position, {})
 
 
+func remove(position: Vector2i) -> bool:
+	return roads.erase(position)
+
+
 func validate_placement(
 	definition: RoadDefinition,
 	position: Vector2i,

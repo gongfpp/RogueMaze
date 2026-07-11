@@ -16,6 +16,8 @@ var speed_cells_per_second: float
 var blocked_grace_seconds: float
 var blocked_remaining: float
 var status: StringName = WAITING
+var entered_cell := false
+var last_entered_position: Vector2i
 
 
 func _init(
@@ -30,6 +32,7 @@ func _init(
 
 
 func update(delta: float, board: BoardState, finish: Vector2i) -> void:
+	entered_cell = false
 	if status == FAILED or status == REACHED:
 		return
 	if current_position == finish:
@@ -56,6 +59,8 @@ func update(delta: float, board: BoardState, finish: Vector2i) -> void:
 	previous_position = current_position
 	has_previous = true
 	current_position = target_position
+	last_entered_position = current_position
+	entered_cell = true
 	has_target = false
 	progress = 0.0
 	blocked_remaining = blocked_grace_seconds

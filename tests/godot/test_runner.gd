@@ -114,6 +114,24 @@ func _test_scenarios() -> void:
 			_expect_equal(result.reason, expected.reason, "%s reason" % scenario.id)
 
 
+func _place_flat_route(session: GameSession) -> void:
+	for x in range(1, GameSession.BOARD_SIZE.x):
+		var flat_card_index := -1
+		for index in session.hand.size():
+			if session.hand[index] in [RoadCatalog.STRAIGHT, RoadCatalog.BRIDGE]:
+				flat_card_index = index
+				break
+		_expect_equal(flat_card_index >= 0, true, "flat route always has a usable card")
+		session.select_card(flat_card_index)
+		_expect_true(session.place_selected(Vector2i(x, 2)).ok, "place full route cell %d" % x)
+
+
+func _advance_runner_to_end(session: GameSession, steps: int = GameSession.BOARD_SIZE.x - 1) -> void:
+	session.countdown = 0.0
+	for step in steps:
+		session.update(2.0)
+
+
 func _test_runner_and_session() -> void:
 	var board := BoardState.new(3, 1)
 	var straight := RoadCatalog.get_definition(RoadCatalog.STRAIGHT)
@@ -132,6 +150,11 @@ func _test_runner_and_session() -> void:
 	var blocked_runner := RunnerState.new(Vector2i(0, 0), 1.0, 0.25)
 	blocked_runner.update(0.3, blocked_board, Vector2i(1, 0))
 	_expect_equal(blocked_runner.status, RunnerState.FAILED, "runner fails after blocked grace")
+	var failed_session := GameSession.new()
+	failed_session.countdown = 0.0
+	failed_session.update(2.0)
+	_expect_equal(failed_session.state, GameSession.LOST, "session reports blocked route loss")
+	_expect_equal(failed_session.failure_reason, GameSession.ROAD_MISSING, "blocked loss has clear reason")
 
 	var session := GameSession.new()
 	_expect_equal(session.hand.size(), GameSession.HAND_SIZE, "session deals four cards")
@@ -147,17 +170,35 @@ func _test_runner_and_session() -> void:
 	_expect_true(session.select_card(3), "valid card selection")
 	_expect_equal(session.select_card(9), false, "invalid card selection")
 
-	var winning_session := GameSession.new()
-	for x in range(1, GameSession.BOARD_SIZE.x):
-		var flat_card_index := -1
-		for index in winning_session.hand.size():
-			if winning_session.hand[index] in [RoadCatalog.STRAIGHT, RoadCatalog.BRIDGE]:
-				flat_card_index = index
-				break
-		_expect_equal(flat_card_index >= 0, true, "flat route always has a usable card")
-		winning_session.select_card(flat_card_index)
-		_expect_true(winning_session.place_selected(Vector2i(x, 2)).ok, "place full route cell %d" % x)
-	winning_session.countdown = 0.0
-	for step in GameSession.BOARD_SIZE.x - 1:
-		winning_session.update(2.0)
-	_expect_equal(winning_session.state, GameSession.WON, "complete flat route wins session")
+	var expedition := GameSession.new()
+	_place_flat_route(expedition)
+	_advance_runner_to_end(expedition)
+	_expect_equal(expedition.state, GameSession.REWARD, "first node opens reward")
+	var deck_size_before := expedition.run_deck.size()
+	_expect_true(expedition.choose_reward(0), "choose a road reward")
+	_expect_equal(expedition.node_index, 1, "reward advances node")
+	_expect_equal(expedition.run_deck.size(), deck_size_before + 1, "reward grows run deck")
+	_expect_true(expedition.hazards.has(Vector2i(3, 2)), "second node contains spikes")
+
+	_place_flat_route(expedition)
+	_advance_runner_to_end(expedition, 3)
+	_expect_equal(expedition.health, 2, "crossing fresh spikes costs one health")
+	_advance_runner_to_end(expedition, 4)
+	_expect_equal(expedition.state, GameSession.REWARD, "second node opens reward")
+	_expect_true(expedition.choose_reward(1), "choose second node reward")
+	_expect_equal(expedition.node_index, 2, "second reward advances to final node")
+	expedition.hazards.clear()
+	_place_flat_route(expedition)
+	_advance_runner_to_end(expedition)
+	_expect_equal(expedition.state, GameSession.WON, "third node completes expedition")
+
+	var rock_session := GameSession.new()
+	rock_session.node_index = 2
+	rock_session._start_node()
+	_place_flat_route(rock_session)
+	var rock: Dictionary = rock_session.hazards[Vector2i(5, 2)]
+	rock.timer = 0.01
+	rock_session.countdown = 0.0
+	rock_session.update(0.02)
+	_expect_equal(rock.triggered, true, "falling rock triggers on timer")
+	_expect_equal(rock_session.board.road_at(Vector2i(5, 2)).is_empty(), true, "falling rock destroys road")
