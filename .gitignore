@@ -12,7 +12,6 @@ exports/
 *.p12
 *.mobileprovision
 *.env
-export_presets.cfg
 
 # IDE / OS
 .idea/
@@ -24,3 +23,4 @@ Thumbs.db
 coverage/
 reports/
 .npm-cache/
+.tools/

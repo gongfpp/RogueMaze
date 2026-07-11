@@ -14,6 +14,11 @@
 - 增加固定顺序循环与基于随机种子的弃牌洗回策略。
 - 增加 15 个自动测试和 3 个可直接运行的胜负样例。
 - 增加“先验证规则，再进入引擎”的实战教学章节。
+- 锁定 Godot 4.7 stable、GDScript 和 Compatibility 渲染。
+- 创建可启动的 Godot 工程、响应式占位首页和规则演示入口。
+- 将道路、棋盘、牌组与三个样例移植到 GDScript，增加 30 项 Godot 断言。
+- 增加 Windows/Linux 导出预设、Windows/Linux 工具脚本和四平台工具链文档。
+- 首次生成 Windows x86_64 与 Linux x86_64 桌面构建。
 
 ### Changed
 

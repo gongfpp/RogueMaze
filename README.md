@@ -5,10 +5,10 @@
 ## 当前状态
 
 - 阶段：P0 立项与预制作
-- 当前版本：规则原型 v0.1
-- 已完成：项目管理基线、道路连接规则、两种牌组循环和可复现样例
-- 下一工作包：`WP-002 工具链与四平台导出验证`
-- 暂定技术栈：Godot 4.x + GDScript；在 `WP-002` 锁定具体版本
+- 当前版本：Godot 工程骨架 v0.1
+- 已完成：项目管理基线、规则原型、Godot 规则移植、Windows/Linux 导出
+- 当前连续工作：`WP-012~015 自动行进、放路、卡牌与单局闭环`
+- 锁定技术栈：Godot 4.7 stable + GDScript + Compatibility 渲染
 - 远端仓库：`https://github.com/gongfpp/RogueMaze.git`
 
 ## 文档入口
@@ -20,6 +20,7 @@
 - [产品待办列表](docs/02-production/BACKLOG.md)
 - [项目管理与质量流程](docs/02-production/WORKFLOW.md)
 - [技术架构草案](docs/03-technical/ARCHITECTURE.md)
+- [工具链与四平台构建](docs/03-technical/TOOLCHAIN.md)
 - [开发日志](docs/04-devlog/README.md)
 - [游戏开发实战教学](docs/05-tutorial/README.md)
 - [零基础成员从这里开始](docs/05-tutorial/START_HERE.md)
@@ -27,14 +28,14 @@
 
 ## 当前可运行内容
 
-`WP-001` 是不依赖游戏引擎的规则原型。安装 Node.js 20+ 后可运行：
+当前仓库同时保留 Node.js 可执行规格和已经移植的 Godot/GDScript 规则。安装本地工具链后运行：
 
 ```powershell
 npm test
-npm run simulate:rules
+.\scripts\test_all.ps1
 ```
 
-实现和说明见 [prototypes/rules](prototypes/rules/README.md)。这部分用于验证规则，之后会移植到 Godot，不会作为正式游戏运行时依赖。
+Node 原型见 [prototypes/rules](prototypes/rules/README.md)，Godot 规则位于 `game/domain`。Node 代码不会进入正式游戏包。
 
 ## 每轮协作约定
 
