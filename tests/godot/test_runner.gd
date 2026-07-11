@@ -15,6 +15,7 @@ func _run_all() -> void:
 	_test_scenarios()
 	_test_runner_and_session()
 	_test_audio_cues()
+	_test_persistence()
 	if failures > 0:
 		push_error("Godot rules: %d assertion(s), %d failure(s)" % [assertions, failures])
 		quit(1)
@@ -212,3 +213,61 @@ func _test_audio_cues() -> void:
 	_expect_equal(tone.mix_rate, AudioCues.MIX_RATE, "procedural cue uses expected mix rate")
 	_expect_equal(tone.stereo, false, "procedural cue is mono")
 	_expect_true(tone.data.size() > 1000, "procedural cue contains samples")
+
+
+func _test_persistence() -> void:
+	var invalid_settings := PersistenceService.sanitize_settings({
+		"version": 0,
+		"sfx_enabled": "not a bool",
+		"reduced_motion": true,
+	})
+	_expect_equal(invalid_settings.version, PersistenceService.SETTINGS_VERSION, "settings migrate to current version")
+	_expect_equal(invalid_settings.sfx_enabled, true, "invalid SFX value uses default")
+	_expect_equal(invalid_settings.reduced_motion, true, "valid legacy motion value migrates")
+
+	var sanitized_progress := PersistenceService.sanitize_progress({
+		"version": 0,
+		"expeditions_won": 2.0,
+		"best_node": 99,
+		"unlocked_roads": ["straight", "straight", "unknown", "bridge"],
+	})
+	_expect_equal(sanitized_progress.expeditions_won, 2, "numeric wins migrate")
+	_expect_equal(sanitized_progress.best_node, GameSession.NODE_COUNT, "best node is clamped")
+	_expect_equal(sanitized_progress.unlocked_roads, ["straight", "bridge"], "unlocks are valid and unique")
+
+	var service := PersistenceService.new(
+		"user://tests/settings-roundtrip.json",
+		"user://tests/progress-roundtrip.json",
+	)
+	_cleanup_persistence_test_files(service)
+	service.settings.sfx_enabled = false
+	service.settings.reduced_motion = true
+	_expect_true(service.save_settings(), "settings save atomically")
+	service.progress.expeditions_won = 4
+	service.progress.best_node = 2
+	_expect_true(service.save_progress(), "progress saves atomically")
+
+	var loaded := PersistenceService.new(service.settings_path, service.progress_path)
+	loaded.load_all()
+	_expect_equal(loaded.settings.sfx_enabled, false, "settings roundtrip SFX")
+	_expect_equal(loaded.settings.reduced_motion, true, "settings roundtrip motion")
+	_expect_equal(loaded.progress.expeditions_won, 4, "progress roundtrip wins")
+	_expect_equal(loaded.progress.best_node, 2, "progress roundtrip best node")
+	_expect_true(loaded.record_expedition_win(), "win record persists")
+	_expect_equal(loaded.progress.expeditions_won, 5, "win record increments")
+
+	var corrupt_file := FileAccess.open(service.progress_path, FileAccess.WRITE)
+	corrupt_file.store_string("{ this is not valid json")
+	corrupt_file.close()
+	var recovered := PersistenceService.new(service.settings_path, service.progress_path)
+	recovered.load_all()
+	_expect_equal(recovered.progress, PersistenceService.default_progress(), "corrupt progress falls back safely")
+	_cleanup_persistence_test_files(service)
+
+
+func _cleanup_persistence_test_files(service: PersistenceService) -> void:
+	for path in [service.settings_path, service.progress_path]:
+		var absolute := ProjectSettings.globalize_path(path)
+		for suffix in ["", ".tmp", ".bak"]:
+			if FileAccess.file_exists(absolute + suffix):
+				DirAccess.remove_absolute(absolute + suffix)

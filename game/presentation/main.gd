@@ -21,6 +21,7 @@ var pause_rect := Rect2()
 var restart_rect := Rect2()
 var reward_rects: Array[Rect2] = []
 var sound_rect := Rect2()
+var motion_rect := Rect2()
 var cell_size := 0.0
 var dragging_card := false
 var drag_position := Vector2.ZERO
@@ -30,11 +31,16 @@ var visual_time := 0.0
 var placement_pulse_remaining := 0.0
 var placement_pulse_cell := Vector2i.ZERO
 var audio_cues: AudioCues
+var persistence := PersistenceService.new()
+var reduced_motion := false
 
 
 func _ready() -> void:
+	persistence.load_all()
 	audio_cues = AudioCues.new()
 	add_child(audio_cues)
+	audio_cues.enabled = persistence.settings.sfx_enabled
+	reduced_motion = persistence.settings.reduced_motion
 	set_process(true)
 	_recalculate_layout()
 	queue_redraw()
@@ -110,8 +116,15 @@ func _begin_press(position: Vector2) -> void:
 		return
 	if sound_rect.has_point(position):
 		audio_cues.enabled = not audio_cues.enabled
+		persistence.settings.sfx_enabled = audio_cues.enabled
+		persistence.save_settings()
 		if audio_cues.enabled:
 			audio_cues.play_rotate()
+		return
+	if motion_rect.has_point(position):
+		reduced_motion = not reduced_motion
+		persistence.settings.reduced_motion = reduced_motion
+		persistence.save_settings()
 		return
 	if rotate_rect.has_point(position):
 		session.rotate_selected()
@@ -143,7 +156,7 @@ func _try_place(cell: Vector2i) -> void:
 	feedback_remaining = 1.35
 	if result.ok:
 		placement_pulse_cell = cell
-		placement_pulse_remaining = 0.28
+		placement_pulse_remaining = 0.0 if reduced_motion else 0.28
 		audio_cues.play_place()
 
 
@@ -169,6 +182,7 @@ func _recalculate_layout() -> void:
 		))
 	rotate_rect = Rect2(Vector2(padding, hand_y - 54.0), Vector2(150.0, 42.0))
 	sound_rect = Rect2(Vector2(padding + 160.0, hand_y - 54.0), Vector2(104.0, 42.0))
+	motion_rect = Rect2(Vector2(padding + 274.0, hand_y - 54.0), Vector2(maxf(92.0, size.x - padding * 2.0 - 274.0), 42.0))
 	pause_rect = Rect2(Vector2(size.x - padding - 116.0, 34.0), Vector2(116.0, 46.0))
 	restart_rect = Rect2(Vector2((size.x - 220.0) * 0.5, size.y * 0.58), Vector2(220.0, 58.0))
 	reward_rects.clear()
@@ -212,6 +226,16 @@ func _draw_header() -> void:
 		13,
 		TEXT_COLOR,
 	)
+	_draw_text_right(
+		Vector2(board_rect.end.x, board_rect.position.y - 10.0),
+		"BEST %d/%d · W %d" % [
+			persistence.progress.best_node,
+			GameSession.NODE_COUNT,
+			persistence.progress.expeditions_won,
+		],
+		13,
+		MUTED_TEXT,
+	)
 	_draw_button(pause_rect, "RESUME" if session.paused else "PAUSE", false)
 
 
@@ -249,7 +273,7 @@ func _draw_board() -> void:
 	]), SELECTED_COLOR)
 
 	var runner_position := board_rect.position + (session.runner.display_position() + Vector2(0.5, 0.5)) * cell_size
-	if session.runner.status == RunnerState.RUNNING:
+	if session.runner.status == RunnerState.RUNNING and not reduced_motion:
 		runner_position.y += sin(visual_time * 11.0) * 2.2
 	draw_circle(runner_position, cell_size * 0.18, Color("f2f5f9"))
 	draw_circle(runner_position + Vector2(cell_size * 0.06, -cell_size * 0.035), cell_size * 0.025, BACKGROUND)
@@ -270,10 +294,11 @@ func _draw_board() -> void:
 func _draw_hand() -> void:
 	_draw_button(rotate_rect, "ROTATE  R", false)
 	_draw_button(sound_rect, "SFX ON" if audio_cues.enabled else "SFX OFF", false)
+	_draw_button(motion_rect, "FX LOW" if reduced_motion else "FX FULL", false)
 	for index in card_rects.size():
 		var rect := card_rects[index]
 		var selected := index == session.selected_card_index
-		if selected:
+		if selected and not reduced_motion:
 			rect = Rect2(rect.position + Vector2(0, -7), rect.size)
 		var fill := Color("26374f") if not selected else Color("44506a")
 		draw_style_box(_rounded_box(fill, SELECTED_COLOR if selected else GRID_COLOR, 3.0), rect)
@@ -290,7 +315,10 @@ func _draw_state_overlay() -> void:
 	elif session.state == GameSession.REWARD:
 		_draw_reward_overlay()
 	elif session.state == GameSession.WON:
-		_draw_center_message("EXPEDITION COMPLETE", "All three road nodes cleared")
+		_draw_center_message(
+			"EXPEDITION COMPLETE",
+			"All three nodes cleared · Wins %d" % persistence.progress.expeditions_won,
+		)
 		_draw_button(restart_rect, "PLAY AGAIN", true)
 	elif session.state == GameSession.LOST:
 		_draw_center_message("RUN FAILED", _failure_summary())
@@ -338,7 +366,7 @@ func _draw_hazards() -> void:
 				draw_line(center + Vector2(-8, -8), center + Vector2(8, 8), DANGER_COLOR, 3.0)
 				draw_line(center + Vector2(8, -8), center + Vector2(-8, 8), DANGER_COLOR, 3.0)
 			else:
-				var rock_scale := 1.0 + sin(visual_time * 5.0) * 0.06
+				var rock_scale := 1.0 if reduced_motion else 1.0 + sin(visual_time * 5.0) * 0.06
 				draw_circle(center + Vector2(0, -cell_size * 0.22), cell_size * 0.16 * rock_scale, Color("b9825a"))
 				_draw_text_centered(center + Vector2(0, cell_size * 0.36), "%.0f" % ceilf(hazard.timer), 12, DANGER_COLOR)
 
@@ -444,6 +472,11 @@ func _draw_text_centered(position: Vector2, text: String, font_size: int, color:
 	_draw_text(position - Vector2(width * 0.5, 0), text, font_size, color)
 
 
+func _draw_text_right(position: Vector2, text: String, font_size: int, color: Color) -> void:
+	var width := get_theme_default_font().get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
+	_draw_text(position - Vector2(width, 0), text, font_size, color)
+
+
 func _draw_background() -> void:
 	var texture_size := BACKGROUND_TEXTURE.get_size()
 	var target_aspect := size.x / maxf(size.y, 1.0)
@@ -460,8 +493,10 @@ func _consume_game_events() -> void:
 	for event in session.pop_events():
 		match event:
 			GameSession.EVENT_NODE_CLEARED:
+				persistence.record_node_cleared(session.node_index + 1)
 				audio_cues.play_reward()
 			GameSession.EVENT_EXPEDITION_WON:
+				persistence.record_expedition_win()
 				audio_cues.play_win()
 			GameSession.EVENT_RUN_LOST:
 				audio_cues.play_fail()

@@ -19,5 +19,7 @@ New-Item -ItemType Directory -Force -Path $localData | Out-Null
 $env:APPDATA = (Resolve-Path -LiteralPath $roamingData).Path
 $env:LOCALAPPDATA = (Resolve-Path -LiteralPath $localData).Path
 
-& $godotBinary @GodotArgs
-exit $LASTEXITCODE
+$ErrorActionPreference = 'Continue'
+& $godotBinary @GodotArgs 2>&1 | ForEach-Object { Write-Output $_.ToString() }
+$godotExitCode = $LASTEXITCODE
+exit $godotExitCode
