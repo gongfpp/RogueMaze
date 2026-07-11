@@ -13,6 +13,7 @@
 3. [第 02 章：第一次把规则放进 Godot](02-first-godot-project.md)
 4. [第 03 章：把规则接成第一局能玩的游戏](03-playable-loop.md)
 5. [第 04 章：怎样把一局扩成三个有变化的节点](04-nodes-hazards-rewards.md)
+6. [第 05 章：背景、动画和音效怎样不破坏玩法](05-feedback-without-noise.md)
 8. 后续章节按里程碑继续补充，不预写未经实践的结论。
 
 ## 每章标准

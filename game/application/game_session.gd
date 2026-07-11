@@ -12,6 +12,12 @@ const ROAD_MISSING: StringName = &"ROAD_MISSING"
 const ROCK_HIT: StringName = &"ROCK_HIT"
 const NO_HEALTH: StringName = &"NO_HEALTH"
 
+const EVENT_NODE_CLEARED: StringName = &"NODE_CLEARED"
+const EVENT_EXPEDITION_WON: StringName = &"EXPEDITION_WON"
+const EVENT_RUN_LOST: StringName = &"RUN_LOST"
+const EVENT_SPIKE_HIT: StringName = &"SPIKE_HIT"
+const EVENT_ROCK_FELL: StringName = &"ROCK_FELL"
+
 const BOARD_SIZE := Vector2i(8, 5)
 const START := Vector2i(0, 2)
 const FINISH := Vector2i(7, 2)
@@ -46,6 +52,7 @@ var max_health := 3
 var hazards: Dictionary = {}
 var reward_options: Array[StringName] = []
 var failure_reason: StringName = &""
+var events: Array[StringName] = []
 
 
 func _init() -> void:
@@ -53,6 +60,7 @@ func _init() -> void:
 
 
 func reset() -> void:
+	events.clear()
 	run_deck.assign(STARTER_DECK)
 	node_index = 0
 	health = max_health
@@ -109,12 +117,15 @@ func update(delta: float) -> void:
 	if runner.status == RunnerState.REACHED:
 		if node_index + 1 >= NODE_COUNT:
 			state = WON
+			events.append(EVENT_EXPEDITION_WON)
 		else:
 			state = REWARD
 			reward_options.assign([RoadCatalog.BRIDGE, RoadCatalog.STRAIGHT, RoadCatalog.UP_RAMP])
+			events.append(EVENT_NODE_CLEARED)
 	elif runner.status == RunnerState.FAILED:
 		failure_reason = ROAD_MISSING
 		state = LOST
+		events.append(EVENT_RUN_LOST)
 
 
 func _update_hazards(delta: float) -> void:
@@ -127,9 +138,11 @@ func _update_hazards(delta: float) -> void:
 			continue
 		hazard.triggered = true
 		board.remove(position)
+		events.append(EVENT_ROCK_FELL)
 		if runner.current_position == position or (runner.has_target and runner.target_position == position):
 			failure_reason = ROCK_HIT
 			state = LOST
+			events.append(EVENT_RUN_LOST)
 
 
 func _apply_entered_cell_hazard(position: Vector2i) -> void:
@@ -139,12 +152,15 @@ func _apply_entered_cell_hazard(position: Vector2i) -> void:
 	if hazard.type == SPIKES and not hazard.spent:
 		hazard.spent = true
 		health -= 1
+		events.append(EVENT_SPIKE_HIT)
 		if health <= 0:
 			failure_reason = NO_HEALTH
 			state = LOST
+			events.append(EVENT_RUN_LOST)
 	elif hazard.type == FALLING_ROCK and hazard.triggered:
 		failure_reason = ROCK_HIT
 		state = LOST
+		events.append(EVENT_RUN_LOST)
 
 
 func choose_reward(index: int) -> bool:
@@ -154,6 +170,12 @@ func choose_reward(index: int) -> bool:
 	node_index += 1
 	_start_node()
 	return true
+
+
+func pop_events() -> Array[StringName]:
+	var result: Array[StringName] = events.duplicate()
+	events.clear()
+	return result
 
 
 func select_card(index: int) -> bool:

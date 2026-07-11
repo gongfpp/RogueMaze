@@ -1,5 +1,7 @@
 extends Control
 
+const BACKGROUND_TEXTURE: Texture2D = preload("res://assets/art/backgrounds/paper-mechanical-blueprint-v1.png")
+
 const BACKGROUND := Color("101827")
 const BOARD_BACKGROUND := Color("18263a")
 const GRID_COLOR := Color("30445f")
@@ -18,14 +20,21 @@ var rotate_rect := Rect2()
 var pause_rect := Rect2()
 var restart_rect := Rect2()
 var reward_rects: Array[Rect2] = []
+var sound_rect := Rect2()
 var cell_size := 0.0
 var dragging_card := false
 var drag_position := Vector2.ZERO
 var feedback_text := ""
 var feedback_remaining := 0.0
+var visual_time := 0.0
+var placement_pulse_remaining := 0.0
+var placement_pulse_cell := Vector2i.ZERO
+var audio_cues: AudioCues
 
 
 func _ready() -> void:
+	audio_cues = AudioCues.new()
+	add_child(audio_cues)
 	set_process(true)
 	_recalculate_layout()
 	queue_redraw()
@@ -38,14 +47,18 @@ func _notification(what: int) -> void:
 
 
 func _process(delta: float) -> void:
+	visual_time += delta
 	session.update(delta)
+	_consume_game_events()
 	feedback_remaining = maxf(0.0, feedback_remaining - delta)
+	placement_pulse_remaining = maxf(0.0, placement_pulse_remaining - delta)
 	queue_redraw()
 
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("rotate_card"):
 		session.rotate_selected()
+		audio_cues.play_rotate()
 		get_viewport().set_input_as_handled()
 	elif event.is_action_pressed("pause_game"):
 		session.toggle_pause()
@@ -61,6 +74,7 @@ func _gui_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton:
 		if event.button_index == MOUSE_BUTTON_RIGHT and event.pressed:
 			session.rotate_selected()
+			audio_cues.play_rotate()
 			accept_event()
 		elif event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
 			_begin_press(event.position)
@@ -94,8 +108,14 @@ func _begin_press(position: Vector2) -> void:
 	if pause_rect.has_point(position):
 		session.toggle_pause()
 		return
+	if sound_rect.has_point(position):
+		audio_cues.enabled = not audio_cues.enabled
+		if audio_cues.enabled:
+			audio_cues.play_rotate()
+		return
 	if rotate_rect.has_point(position):
 		session.rotate_selected()
+		audio_cues.play_rotate()
 		return
 	for index in card_rects.size():
 		if card_rects[index].has_point(position):
@@ -121,6 +141,10 @@ func _try_place(cell: Vector2i) -> void:
 	var result := session.place_selected(cell)
 	feedback_text = "Road placed" if result.ok else _failure_label(result.get("reason", &"UNKNOWN"))
 	feedback_remaining = 1.35
+	if result.ok:
+		placement_pulse_cell = cell
+		placement_pulse_remaining = 0.28
+		audio_cues.play_place()
 
 
 func _recalculate_layout() -> void:
@@ -144,6 +168,7 @@ func _recalculate_layout() -> void:
 			Vector2(card_width, card_height),
 		))
 	rotate_rect = Rect2(Vector2(padding, hand_y - 54.0), Vector2(150.0, 42.0))
+	sound_rect = Rect2(Vector2(padding + 160.0, hand_y - 54.0), Vector2(104.0, 42.0))
 	pause_rect = Rect2(Vector2(size.x - padding - 116.0, 34.0), Vector2(116.0, 46.0))
 	restart_rect = Rect2(Vector2((size.x - 220.0) * 0.5, size.y * 0.58), Vector2(220.0, 58.0))
 	reward_rects.clear()
@@ -157,7 +182,7 @@ func _recalculate_layout() -> void:
 
 
 func _draw() -> void:
-	draw_rect(Rect2(Vector2.ZERO, size), BACKGROUND)
+	_draw_background()
 	_draw_header()
 	_draw_board()
 	_draw_tutorial_hint()
@@ -210,6 +235,10 @@ func _draw_board() -> void:
 	for cell in session.board.roads:
 		_draw_road(cell, session.board.roads[cell], ROAD_COLOR)
 	_draw_hazards()
+	if placement_pulse_remaining > 0.0:
+		var pulse_progress := 1.0 - placement_pulse_remaining / 0.28
+		var pulse_rect := _cell_rect(placement_pulse_cell).grow(-4.0 - pulse_progress * 6.0)
+		draw_rect(pulse_rect, Color(SELECTED_COLOR, 0.75 * (1.0 - pulse_progress)), false, 3.0)
 
 	var finish_center := _cell_center(GameSession.FINISH)
 	draw_line(finish_center + Vector2(0, 18), finish_center + Vector2(0, -22), TEXT_COLOR, 3.0)
@@ -220,6 +249,8 @@ func _draw_board() -> void:
 	]), SELECTED_COLOR)
 
 	var runner_position := board_rect.position + (session.runner.display_position() + Vector2(0.5, 0.5)) * cell_size
+	if session.runner.status == RunnerState.RUNNING:
+		runner_position.y += sin(visual_time * 11.0) * 2.2
 	draw_circle(runner_position, cell_size * 0.18, Color("f2f5f9"))
 	draw_circle(runner_position + Vector2(cell_size * 0.06, -cell_size * 0.035), cell_size * 0.025, BACKGROUND)
 
@@ -238,9 +269,12 @@ func _draw_board() -> void:
 
 func _draw_hand() -> void:
 	_draw_button(rotate_rect, "ROTATE  R", false)
+	_draw_button(sound_rect, "SFX ON" if audio_cues.enabled else "SFX OFF", false)
 	for index in card_rects.size():
 		var rect := card_rects[index]
 		var selected := index == session.selected_card_index
+		if selected:
+			rect = Rect2(rect.position + Vector2(0, -7), rect.size)
 		var fill := Color("26374f") if not selected else Color("44506a")
 		draw_style_box(_rounded_box(fill, SELECTED_COLOR if selected else GRID_COLOR, 3.0), rect)
 		var definition := RoadCatalog.get_definition(session.hand[index])
@@ -304,7 +338,8 @@ func _draw_hazards() -> void:
 				draw_line(center + Vector2(-8, -8), center + Vector2(8, 8), DANGER_COLOR, 3.0)
 				draw_line(center + Vector2(8, -8), center + Vector2(-8, 8), DANGER_COLOR, 3.0)
 			else:
-				draw_circle(center + Vector2(0, -cell_size * 0.22), cell_size * 0.16, Color("b9825a"))
+				var rock_scale := 1.0 + sin(visual_time * 5.0) * 0.06
+				draw_circle(center + Vector2(0, -cell_size * 0.22), cell_size * 0.16 * rock_scale, Color("b9825a"))
 				_draw_text_centered(center + Vector2(0, cell_size * 0.36), "%.0f" % ceilf(hazard.timer), 12, DANGER_COLOR)
 
 
@@ -407,3 +442,30 @@ func _draw_text(position: Vector2, text: String, font_size: int, color: Color) -
 func _draw_text_centered(position: Vector2, text: String, font_size: int, color: Color) -> void:
 	var width := get_theme_default_font().get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
 	_draw_text(position - Vector2(width * 0.5, 0), text, font_size, color)
+
+
+func _draw_background() -> void:
+	var texture_size := BACKGROUND_TEXTURE.get_size()
+	var target_aspect := size.x / maxf(size.y, 1.0)
+	var source_width := texture_size.y * target_aspect
+	var source_rect := Rect2(
+		Vector2((texture_size.x - source_width) * 0.5, 0.0),
+		Vector2(source_width, texture_size.y),
+	)
+	draw_texture_rect_region(BACKGROUND_TEXTURE, Rect2(Vector2.ZERO, size), source_rect, Color(0.72, 0.75, 0.80, 1.0))
+	draw_rect(Rect2(Vector2.ZERO, size), Color(BACKGROUND, 0.78), true)
+
+
+func _consume_game_events() -> void:
+	for event in session.pop_events():
+		match event:
+			GameSession.EVENT_NODE_CLEARED:
+				audio_cues.play_reward()
+			GameSession.EVENT_EXPEDITION_WON:
+				audio_cues.play_win()
+			GameSession.EVENT_RUN_LOST:
+				audio_cues.play_fail()
+			GameSession.EVENT_SPIKE_HIT:
+				audio_cues.play_damage()
+			GameSession.EVENT_ROCK_FELL:
+				audio_cues.play_rock()

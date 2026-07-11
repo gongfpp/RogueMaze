@@ -14,6 +14,7 @@ func _run_all() -> void:
 	_test_deck_cycles()
 	_test_scenarios()
 	_test_runner_and_session()
+	_test_audio_cues()
 	if failures > 0:
 		push_error("Godot rules: %d assertion(s), %d failure(s)" % [assertions, failures])
 		quit(1)
@@ -202,3 +203,12 @@ func _test_runner_and_session() -> void:
 	rock_session.update(0.02)
 	_expect_equal(rock.triggered, true, "falling rock triggers on timer")
 	_expect_equal(rock_session.board.road_at(Vector2i(5, 2)).is_empty(), true, "falling rock destroys road")
+	_expect_true(rock_session.pop_events().has(GameSession.EVENT_ROCK_FELL), "rock event is observable")
+
+
+func _test_audio_cues() -> void:
+	var tone := AudioCues.build_tone(440.0, 0.08, 0.2)
+	_expect_equal(tone.format, AudioStreamWAV.FORMAT_16_BITS, "procedural cue uses 16-bit PCM")
+	_expect_equal(tone.mix_rate, AudioCues.MIX_RATE, "procedural cue uses expected mix rate")
+	_expect_equal(tone.stereo, false, "procedural cue is mono")
+	_expect_true(tone.data.size() > 1000, "procedural cue contains samples")
