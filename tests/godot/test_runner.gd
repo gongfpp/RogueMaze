@@ -10,6 +10,7 @@ func _initialize() -> void:
 
 func _run_all() -> void:
 	_test_directions_and_roads()
+	_test_content_registry()
 	_test_board_placement()
 	_test_deck_cycles()
 	_test_scenarios()
@@ -55,6 +56,30 @@ func _test_directions_and_roads() -> void:
 	_expect_true(vertical.has(DirectionRules.Value.UP), "vertical straight opens up")
 	_expect_true(vertical.has(DirectionRules.Value.DOWN), "vertical straight opens down")
 	_expect_equal(RoadCatalog.ALL_IDS.size(), 5, "five road definitions")
+
+
+func _test_content_registry() -> void:
+	var content := ContentRegistry.default_registry()
+	_expect_true(content.is_valid(), "default gameplay content validates")
+	_expect_equal(content.roads.size(), RoadCatalog.ALL_IDS.size(), "content defines every road")
+	_expect_equal(content.road_label(RoadCatalog.UP_RAMP), "RAMP UP", "road label comes from content")
+	_expect_equal(content.nodes.size(), GameSession.NODE_COUNT, "content defines the expedition nodes")
+	_expect_equal(content.node(1).hazards[0].damage, 1, "hazard damage comes from content")
+	_expect_equal(content.node(2).hazards[1].timer, 8.0, "rock timer comes from content")
+
+	var invalid := ContentRegistry.from_data({
+		"schema_version": 1,
+		"roads": [
+			{"id": "broken", "ports": ["LEFT", "NOWHERE"]},
+			{"id": "broken", "ports": ["LEFT", "RIGHT"]},
+		],
+		"expedition": {
+			"starter_deck": ["missing"],
+			"nodes": [{"id": "only", "hazards": [], "reward_pool": []}],
+		},
+	})
+	_expect_equal(invalid.is_valid(), false, "invalid content is rejected")
+	_expect_true(invalid.errors.size() >= 3, "content validation reports multiple authoring mistakes")
 
 
 func _test_board_placement() -> void:
@@ -163,7 +188,7 @@ func _test_runner_and_session() -> void:
 	var placed := session.place_selected(Vector2i(1, 2))
 	_expect_true(placed.ok, "session places selected road")
 	_expect_equal(session.hand.size(), GameSession.HAND_SIZE, "placing refills hand")
-	_expect_equal(session.hand[0], GameSession.STARTER_DECK[4], "played slot receives next authored card")
+	_expect_equal(session.hand[0], session.content.starter_deck[4], "played slot receives next authored card")
 	_expect_equal(session.deck.fixed_index, 5, "placing advances deck draw index")
 	var hand_after_place := session.hand.duplicate()
 	var rejected := session.place_selected(Vector2i(1, 2))

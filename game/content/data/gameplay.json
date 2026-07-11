@@ -1,0 +1,77 @@
+{
+  "schema_version": 1,
+  "roads": [
+    {
+      "id": "straight",
+      "label": "STRAIGHT",
+      "ports": ["LEFT", "RIGHT"],
+      "keywords": [],
+      "rarity": "COMMON"
+    },
+    {
+      "id": "up_ramp",
+      "label": "RAMP UP",
+      "ports": ["LEFT", "UP"],
+      "keywords": ["vertical"],
+      "rarity": "COMMON"
+    },
+    {
+      "id": "down_ramp",
+      "label": "RAMP DOWN",
+      "ports": ["LEFT", "DOWN"],
+      "keywords": ["vertical"],
+      "rarity": "COMMON"
+    },
+    {
+      "id": "turn",
+      "label": "TURN",
+      "ports": ["UP", "RIGHT"],
+      "keywords": ["vertical"],
+      "rarity": "UNCOMMON"
+    },
+    {
+      "id": "bridge",
+      "label": "BRIDGE",
+      "ports": ["LEFT", "RIGHT"],
+      "keywords": ["bridge"],
+      "rarity": "UNCOMMON"
+    }
+  ],
+  "expedition": {
+    "starter_deck": [
+      "straight",
+      "straight",
+      "up_ramp",
+      "down_ramp",
+      "straight",
+      "bridge",
+      "turn",
+      "straight"
+    ],
+    "nodes": [
+      {
+        "id": "workshop_gate",
+        "title": "WORKSHOP GATE",
+        "hazards": [],
+        "reward_pool": ["bridge", "straight", "up_ramp"]
+      },
+      {
+        "id": "spike_gallery",
+        "title": "SPIKE GALLERY",
+        "hazards": [
+          {"type": "SPIKES", "position": [3, 2], "damage": 1}
+        ],
+        "reward_pool": ["turn", "straight", "down_ramp"]
+      },
+      {
+        "id": "falling_foundry",
+        "title": "FALLING FOUNDRY",
+        "hazards": [
+          {"type": "SPIKES", "position": [3, 2], "damage": 1},
+          {"type": "FALLING_ROCK", "position": [5, 2], "timer": 8.0}
+        ],
+        "reward_pool": []
+      }
+    ]
+  }
+}

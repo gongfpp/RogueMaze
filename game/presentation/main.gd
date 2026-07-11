@@ -437,13 +437,7 @@ func _cell_center(cell: Vector2i) -> Vector2:
 
 
 func _road_label(road_id: StringName) -> String:
-	match road_id:
-		RoadCatalog.STRAIGHT: return "STRAIGHT"
-		RoadCatalog.UP_RAMP: return "RAMP UP"
-		RoadCatalog.DOWN_RAMP: return "RAMP DOWN"
-		RoadCatalog.TURN: return "TURN"
-		RoadCatalog.BRIDGE: return "BRIDGE"
-		_: return String(road_id).to_upper()
+	return RoadCatalog.get_label(road_id)
 
 
 func _failure_label(reason: StringName) -> String:

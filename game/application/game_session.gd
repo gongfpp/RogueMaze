@@ -25,20 +25,10 @@ const HAND_SIZE := 4
 const START_COUNTDOWN := 4.0
 const NODE_COUNT := 3
 
-const STARTER_DECK: Array[StringName] = [
-	RoadCatalog.STRAIGHT,
-	RoadCatalog.STRAIGHT,
-	RoadCatalog.UP_RAMP,
-	RoadCatalog.DOWN_RAMP,
-	RoadCatalog.STRAIGHT,
-	RoadCatalog.BRIDGE,
-	RoadCatalog.TURN,
-	RoadCatalog.STRAIGHT,
-]
-
 var board: BoardState
 var deck: DeckState
 var runner: RunnerState
+var content
 var run_deck: Array[StringName] = []
 var hand: Array[StringName] = []
 var selected_card_index := 0
@@ -55,13 +45,14 @@ var failure_reason: StringName = &""
 var events: Array[StringName] = []
 
 
-func _init() -> void:
+func _init(p_content = null) -> void:
+	content = p_content if p_content != null else ContentRegistry.default_registry()
 	reset()
 
 
 func reset() -> void:
 	events.clear()
-	run_deck.assign(STARTER_DECK)
+	run_deck.assign(content.starter_deck)
 	node_index = 0
 	health = max_health
 	_start_node()
@@ -87,17 +78,20 @@ func _start_node() -> void:
 
 func _configure_hazards() -> void:
 	hazards.clear()
-	if node_index >= 1:
-		hazards[Vector2i(3, 2)] = {
-			"type": SPIKES,
-			"spent": false,
-		}
-	if node_index >= 2:
-		hazards[Vector2i(5, 2)] = {
-			"type": FALLING_ROCK,
-			"timer": 8.0,
-			"triggered": false,
-		}
+	for definition in content.node(node_index).get("hazards", []):
+		var position: Vector2i = definition.position
+		if definition.type == SPIKES:
+			hazards[position] = {
+				"type": SPIKES,
+				"damage": definition.damage,
+				"spent": false,
+			}
+		elif definition.type == FALLING_ROCK:
+			hazards[position] = {
+				"type": FALLING_ROCK,
+				"timer": definition.timer,
+				"triggered": false,
+			}
 
 
 func update(delta: float) -> void:
@@ -120,7 +114,7 @@ func update(delta: float) -> void:
 			events.append(EVENT_EXPEDITION_WON)
 		else:
 			state = REWARD
-			reward_options.assign([RoadCatalog.BRIDGE, RoadCatalog.STRAIGHT, RoadCatalog.UP_RAMP])
+			reward_options.assign(content.node(node_index).reward_pool)
 			events.append(EVENT_NODE_CLEARED)
 	elif runner.status == RunnerState.FAILED:
 		failure_reason = ROAD_MISSING
@@ -151,7 +145,7 @@ func _apply_entered_cell_hazard(position: Vector2i) -> void:
 	var hazard: Dictionary = hazards[position]
 	if hazard.type == SPIKES and not hazard.spent:
 		hazard.spent = true
-		health -= 1
+		health -= int(hazard.get("damage", 1))
 		events.append(EVENT_SPIKE_HIT)
 		if health <= 0:
 			failure_reason = NO_HEALTH

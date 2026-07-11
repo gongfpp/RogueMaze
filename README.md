@@ -6,8 +6,8 @@
 
 - 阶段：P0 立项与预制作
 - 当前版本：Alpha 基线 v0.3
-- 已完成：垂直切片、纸片机械音画、版本化设置/进度存档、减少动态效果、Windows/Linux 导出
-- 当前连续工作：数据驱动卡牌/关卡、构筑升级与 `WP-025` 平台构建深化；真人试玩保持开放记录
+- 已完成：垂直切片、纸片机械音画、版本化存档、数据驱动道路/节点、减少动态效果、Windows/Linux 导出
+- 当前连续工作：卡牌升级与移除、Alpha 内容扩展及 `WP-025` 平台构建深化；真人试玩保持开放记录
 - 锁定技术栈：Godot 4.7 stable + GDScript + Compatibility 渲染
 - 远端仓库：`https://github.com/gongfpp/RogueMaze.git`
 
