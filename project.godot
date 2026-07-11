@@ -7,7 +7,7 @@ config_version=5
 
 config/name="RogueMaze"
 config/description="Build the road before the runner reaches the edge."
-config/version="0.1.0"
+config/version="0.4.0"
 run/main_scene="res://game/presentation/main.tscn"
 
 [display]

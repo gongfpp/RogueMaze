@@ -66,7 +66,8 @@ func _test_content_registry() -> void:
 	_expect_equal(content.road_label(RoadCatalog.UP_RAMP), "RAMP UP", "road label comes from content")
 	_expect_equal(content.nodes.size(), GameSession.NODE_COUNT, "content defines the expedition nodes")
 	_expect_equal(content.node(1).hazards[0].damage, 1, "hazard damage comes from content")
-	_expect_equal(content.node(2).hazards[1].timer, 8.0, "rock timer comes from content")
+	_expect_equal(content.node(2).hazards[0].cycle, 4.0, "steam cycle comes from content")
+	_expect_equal(content.node(3).hazards[1].timer, 8.0, "rock timer comes from content")
 
 	var invalid := ContentRegistry.from_data({
 		"schema_version": 1,
@@ -119,7 +120,7 @@ func _test_card_progression() -> void:
 	_expect_equal(remove_session.run_deck.size(), original_size - 1, "remove reward shrinks deck")
 
 	var armor_session := GameSession.new()
-	armor_session.node_index = 2
+	armor_session.node_index = 3
 	armor_session._start_node()
 	armor_session.board.place(
 		RoadCatalog.get_definition(RoadCatalog.STRAIGHT),
@@ -135,6 +136,24 @@ func _test_card_progression() -> void:
 	_expect_equal(armor_session.board.road_at(Vector2i(5, 2)).level, 1, "armor downgrades instead of breaking")
 	_expect_equal(rock.neutralized, true, "armor neutralizes the falling rock")
 	_expect_true(armor_session.pop_events().has(GameSession.EVENT_ROAD_SAVED), "armor save emits presentation event")
+
+	var steam_session := GameSession.new()
+	steam_session.node_index = 2
+	steam_session._start_node()
+	var steam: Dictionary = steam_session.hazards[Vector2i(4, 2)]
+	_expect_true(steam_session.is_steam_active(steam), "steam starts in authored active phase")
+	steam_session._apply_entered_cell_hazard(Vector2i(4, 2))
+	_expect_equal(steam_session.health, 2, "active steam costs authored damage")
+	_expect_true(steam_session.pop_events().has(GameSession.EVENT_STEAM_HIT), "steam hit emits presentation event")
+
+	var safe_steam_session := GameSession.new()
+	safe_steam_session.node_index = 2
+	safe_steam_session._start_node()
+	var safe_steam: Dictionary = safe_steam_session.hazards[Vector2i(4, 2)]
+	safe_steam.elapsed = 2.0
+	_expect_equal(safe_steam_session.is_steam_active(safe_steam), false, "steam has a readable safe phase")
+	safe_steam_session._apply_entered_cell_hazard(Vector2i(4, 2))
+	_expect_equal(safe_steam_session.health, 3, "inactive steam can be crossed safely")
 
 
 func _test_board_placement() -> void:
@@ -268,14 +287,29 @@ func _test_runner_and_session() -> void:
 	_advance_runner_to_end(expedition, 4)
 	_expect_equal(expedition.state, GameSession.REWARD, "second node opens reward")
 	_expect_true(expedition.choose_reward(1), "choose second node reward")
-	_expect_equal(expedition.node_index, 2, "second reward advances to final node")
+	_expect_equal(expedition.node_index, 2, "second reward advances to steam works")
+	_expect_true(expedition.hazards.has(Vector2i(4, 2)), "third node introduces steam timing")
 	expedition.hazards.clear()
 	_place_flat_route(expedition)
 	_advance_runner_to_end(expedition)
-	_expect_equal(expedition.state, GameSession.WON, "third node completes expedition")
+	_expect_equal(expedition.state, GameSession.REWARD, "third node opens another deck choice")
+	_expect_true(expedition.choose_reward(0), "choose third node reward")
+	_expect_equal(expedition.node_index, 3, "third reward advances to falling foundry")
+	_expect_true(expedition.hazards.has(Vector2i(5, 2)), "fourth node contains falling rock")
+	expedition.hazards.clear()
+	_place_flat_route(expedition)
+	_advance_runner_to_end(expedition)
+	_expect_equal(expedition.state, GameSession.REWARD, "fourth node opens final deck choice")
+	_expect_true(expedition.choose_reward(2), "remove a card before final node")
+	_expect_equal(expedition.node_index, 4, "fourth reward advances to pressure core")
+	_expect_equal(expedition.hazards.size(), 3, "final node combines all three hazards")
+	expedition.hazards.clear()
+	_place_flat_route(expedition)
+	_advance_runner_to_end(expedition)
+	_expect_equal(expedition.state, GameSession.WON, "fifth node completes expedition")
 
 	var rock_session := GameSession.new()
-	rock_session.node_index = 2
+	rock_session.node_index = 3
 	rock_session._start_node()
 	_place_flat_route(rock_session)
 	var rock: Dictionary = rock_session.hazards[Vector2i(5, 2)]

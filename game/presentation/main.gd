@@ -207,11 +207,12 @@ func _draw() -> void:
 
 func _draw_header() -> void:
 	_draw_text(Vector2(28.0, 56.0), "ROGUE MAZE", 30, SELECTED_COLOR)
-	var status := "Build the road before the runner arrives"
+	var node_title: String = session.content.node(session.node_index).get("title", "")
+	var status := "%s · BUILD THE ROAD" % node_title
 	if session.countdown > 0.0:
-		status = "Runner starts in %.1f" % session.countdown
+		status = "%s · START %.1f" % [node_title, session.countdown]
 	elif session.runner.status == RunnerState.WAITING:
-		status = "Road missing · %.1fs" % maxf(0.0, session.runner.blocked_remaining)
+		status = "ROAD MISSING · %.1fs" % maxf(0.0, session.runner.blocked_remaining)
 	if feedback_remaining > 0.0:
 		status = feedback_text
 	_draw_text(Vector2(28.0, 91.0), status, 17, MUTED_TEXT)
@@ -375,6 +376,14 @@ func _draw_hazards() -> void:
 				var rock_scale := 1.0 if reduced_motion else 1.0 + sin(visual_time * 5.0) * 0.06
 				draw_circle(center + Vector2(0, -cell_size * 0.22), cell_size * 0.16 * rock_scale, Color("b9825a"))
 				_draw_text_centered(center + Vector2(0, cell_size * 0.36), "%.0f" % ceilf(hazard.timer), 12, DANGER_COLOR)
+		elif hazard.type == GameSession.STEAM_VENT:
+			var active := session.is_steam_active(hazard)
+			var steam_color := DANGER_COLOR if active else Color("6fa8b7")
+			draw_arc(center, cell_size * 0.2, 0.0, TAU, 18, steam_color, 3.0, true)
+			if active:
+				for offset in [-10.0, 0.0, 10.0]:
+					draw_line(center + Vector2(offset, 7), center + Vector2(offset + 4, -15), steam_color, 3.0, true)
+			_draw_text_centered(center + Vector2(0, cell_size * 0.37), "%.1f" % session.steam_time_to_change(hazard), 10, steam_color)
 
 
 func _draw_reward_overlay() -> void:
@@ -513,3 +522,7 @@ func _consume_game_events() -> void:
 				feedback_text = "Armor absorbed the falling rock"
 				feedback_remaining = 2.2
 				audio_cues.play_reward()
+			GameSession.EVENT_STEAM_HIT:
+				feedback_text = "Steam vent burned 1 HP"
+				feedback_remaining = 2.0
+				audio_cues.play_damage()

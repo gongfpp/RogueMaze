@@ -186,7 +186,7 @@ func _parse_hazards(values: Variant, node_id: StringName) -> Array[Dictionary]:
 			continue
 		var type := StringName(String(value.get("type", "")))
 		var raw_position: Variant = value.get("position", [])
-		if type not in [&"SPIKES", &"FALLING_ROCK"]:
+		if type not in [&"SPIKES", &"FALLING_ROCK", &"STEAM_VENT"]:
 			errors.append("Node %s has unknown hazard: %s" % [node_id, type])
 			continue
 		if not raw_position is Array or raw_position.size() != 2:
@@ -199,8 +199,13 @@ func _parse_hazards(values: Variant, node_id: StringName) -> Array[Dictionary]:
 		var hazard := {"type": type, "position": position}
 		if type == &"SPIKES":
 			hazard.damage = maxi(1, int(value.get("damage", 1)))
-		else:
+		elif type == &"FALLING_ROCK":
 			hazard.timer = maxf(0.1, float(value.get("timer", 8.0)))
+		else:
+			hazard.cycle = maxf(0.2, float(value.get("cycle", 4.0)))
+			hazard.active_duration = clampf(float(value.get("active_duration", 1.5)), 0.1, hazard.cycle - 0.1)
+			hazard.phase = maxf(0.0, float(value.get("phase", 0.0)))
+			hazard.damage = maxi(1, int(value.get("damage", 1)))
 		result.append(hazard)
 	return result
 

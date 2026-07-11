@@ -8,6 +8,7 @@ const LOST: StringName = &"LOST"
 
 const SPIKES: StringName = &"SPIKES"
 const FALLING_ROCK: StringName = &"FALLING_ROCK"
+const STEAM_VENT: StringName = &"STEAM_VENT"
 const ROAD_MISSING: StringName = &"ROAD_MISSING"
 const ROCK_HIT: StringName = &"ROCK_HIT"
 const NO_HEALTH: StringName = &"NO_HEALTH"
@@ -18,6 +19,7 @@ const EVENT_RUN_LOST: StringName = &"RUN_LOST"
 const EVENT_SPIKE_HIT: StringName = &"SPIKE_HIT"
 const EVENT_ROCK_FELL: StringName = &"ROCK_FELL"
 const EVENT_ROAD_SAVED: StringName = &"ROAD_SAVED"
+const EVENT_STEAM_HIT: StringName = &"STEAM_HIT"
 
 const REWARD_ADD: StringName = &"ADD"
 const REWARD_UPGRADE: StringName = &"UPGRADE"
@@ -28,7 +30,7 @@ const START := Vector2i(0, 2)
 const FINISH := Vector2i(7, 2)
 const HAND_SIZE := 4
 const START_COUNTDOWN := 4.0
-const NODE_COUNT := 3
+const NODE_COUNT := 5
 
 var board: BoardState
 var deck: DeckState
@@ -102,6 +104,16 @@ func _configure_hazards() -> void:
 				"triggered": false,
 				"neutralized": false,
 			}
+		elif definition.type == STEAM_VENT:
+			hazards[position] = {
+				"type": STEAM_VENT,
+				"cycle": definition.cycle,
+				"active_duration": definition.active_duration,
+				"phase": definition.phase,
+				"elapsed": 0.0,
+				"damage": definition.damage,
+				"spent": false,
+			}
 
 
 func update(delta: float) -> void:
@@ -135,6 +147,9 @@ func update(delta: float) -> void:
 func _update_hazards(delta: float) -> void:
 	for position in hazards:
 		var hazard: Dictionary = hazards[position]
+		if hazard.type == STEAM_VENT:
+			hazard.elapsed += delta
+			continue
 		if hazard.type != FALLING_ROCK or hazard.triggered:
 			continue
 		hazard.timer = maxf(0.0, hazard.timer - delta)
@@ -171,6 +186,27 @@ func _apply_entered_cell_hazard(position: Vector2i) -> void:
 		failure_reason = ROCK_HIT
 		state = LOST
 		events.append(EVENT_RUN_LOST)
+	elif hazard.type == STEAM_VENT and not hazard.spent and is_steam_active(hazard):
+		hazard.spent = true
+		health -= int(hazard.damage)
+		events.append(EVENT_STEAM_HIT)
+		if health <= 0:
+			failure_reason = NO_HEALTH
+			state = LOST
+			events.append(EVENT_RUN_LOST)
+
+
+func is_steam_active(hazard: Dictionary) -> bool:
+	var cycle := maxf(0.2, float(hazard.get("cycle", 4.0)))
+	var phase_position := fmod(float(hazard.get("elapsed", 0.0)) + float(hazard.get("phase", 0.0)), cycle)
+	return phase_position < float(hazard.get("active_duration", 1.5))
+
+
+func steam_time_to_change(hazard: Dictionary) -> float:
+	var cycle := maxf(0.2, float(hazard.get("cycle", 4.0)))
+	var active_duration := float(hazard.get("active_duration", 1.5))
+	var phase_position := fmod(float(hazard.get("elapsed", 0.0)) + float(hazard.get("phase", 0.0)), cycle)
+	return active_duration - phase_position if phase_position < active_duration else cycle - phase_position
 
 
 func choose_reward(index: int) -> bool:
