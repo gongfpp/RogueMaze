@@ -5,9 +5,9 @@
 ## 当前状态
 
 - 阶段：P0 立项与预制作
-- 当前版本：策划基线 v0.1
-- 本轮目标：只完成项目章程、核心策划、开发计划与管理基线
-- 下一工作包：`WP-001 无引擎规则原型`
+- 当前版本：规则原型 v0.1
+- 已完成：项目管理基线、道路连接规则、两种牌组循环和可复现样例
+- 下一工作包：`WP-002 工具链与四平台导出验证`
 - 暂定技术栈：Godot 4.x + GDScript；在 `WP-002` 锁定具体版本
 - 远端仓库：`https://github.com/gongfpp/RogueMaze.git`
 
@@ -24,6 +24,17 @@
 - [游戏开发实战教学](docs/05-tutorial/README.md)
 - [零基础成员从这里开始](docs/05-tutorial/START_HERE.md)
 - [风险登记册](docs/02-production/RISK_REGISTER.md)
+
+## 当前可运行内容
+
+`WP-001` 是不依赖游戏引擎的规则原型。安装 Node.js 20+ 后可运行：
+
+```powershell
+npm test
+npm run simulate:rules
+```
+
+实现和说明见 [prototypes/rules](prototypes/rules/README.md)。这部分用于验证规则，之后会移植到 Godot，不会作为正式游戏运行时依赖。
 
 ## 每轮协作约定
 
