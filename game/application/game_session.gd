@@ -17,6 +17,11 @@ const EVENT_EXPEDITION_WON: StringName = &"EXPEDITION_WON"
 const EVENT_RUN_LOST: StringName = &"RUN_LOST"
 const EVENT_SPIKE_HIT: StringName = &"SPIKE_HIT"
 const EVENT_ROCK_FELL: StringName = &"ROCK_FELL"
+const EVENT_ROAD_SAVED: StringName = &"ROAD_SAVED"
+
+const REWARD_ADD: StringName = &"ADD"
+const REWARD_UPGRADE: StringName = &"UPGRADE"
+const REWARD_REMOVE: StringName = &"REMOVE"
 
 const BOARD_SIZE := Vector2i(8, 5)
 const START := Vector2i(0, 2)
@@ -29,8 +34,8 @@ var board: BoardState
 var deck: DeckState
 var runner: RunnerState
 var content
-var run_deck: Array[StringName] = []
-var hand: Array[StringName] = []
+var run_deck: Array[CardState] = []
+var hand: Array[CardState] = []
 var selected_card_index := 0
 var selected_quarter_turns := 0
 var state: StringName = PLAYING
@@ -40,9 +45,10 @@ var node_index := 0
 var health := 3
 var max_health := 3
 var hazards: Dictionary = {}
-var reward_options: Array[StringName] = []
+var reward_options: Array[Dictionary] = []
 var failure_reason: StringName = &""
 var events: Array[StringName] = []
+var next_card_instance_id := 1
 
 
 func _init(p_content = null) -> void:
@@ -52,7 +58,10 @@ func _init(p_content = null) -> void:
 
 func reset() -> void:
 	events.clear()
-	run_deck.assign(content.starter_deck)
+	run_deck.clear()
+	next_card_instance_id = 1
+	for road_id in content.starter_deck:
+		run_deck.append(_create_card(road_id))
 	node_index = 0
 	health = max_health
 	_start_node()
@@ -91,6 +100,7 @@ func _configure_hazards() -> void:
 				"type": FALLING_ROCK,
 				"timer": definition.timer,
 				"triggered": false,
+				"neutralized": false,
 			}
 
 
@@ -114,7 +124,7 @@ func update(delta: float) -> void:
 			events.append(EVENT_EXPEDITION_WON)
 		else:
 			state = REWARD
-			reward_options.assign(content.node(node_index).reward_pool)
+			_build_reward_options(content.node(node_index).reward_pool)
 			events.append(EVENT_NODE_CLEARED)
 	elif runner.status == RunnerState.FAILED:
 		failure_reason = ROAD_MISSING
@@ -131,6 +141,12 @@ func _update_hazards(delta: float) -> void:
 		if hazard.timer > 0.0:
 			continue
 		hazard.triggered = true
+		var road := board.road_at(position)
+		if not road.is_empty() and int(road.get("level", 1)) > 1:
+			road.level = 1
+			hazard.neutralized = true
+			events.append(EVENT_ROAD_SAVED)
+			continue
 		board.remove(position)
 		events.append(EVENT_ROCK_FELL)
 		if runner.current_position == position or (runner.has_target and runner.target_position == position):
@@ -151,7 +167,7 @@ func _apply_entered_cell_hazard(position: Vector2i) -> void:
 			failure_reason = NO_HEALTH
 			state = LOST
 			events.append(EVENT_RUN_LOST)
-	elif hazard.type == FALLING_ROCK and hazard.triggered:
+	elif hazard.type == FALLING_ROCK and hazard.triggered and not hazard.get("neutralized", false):
 		failure_reason = ROCK_HIT
 		state = LOST
 		events.append(EVENT_RUN_LOST)
@@ -160,10 +176,80 @@ func _apply_entered_cell_hazard(position: Vector2i) -> void:
 func choose_reward(index: int) -> bool:
 	if state != REWARD or index < 0 or index >= reward_options.size():
 		return false
-	run_deck.append(reward_options[index])
+	var option: Dictionary = reward_options[index]
+	match option.type:
+		REWARD_ADD:
+			run_deck.append(_create_card(option.road_id))
+		REWARD_UPGRADE:
+			var card := _find_card(option.card_id)
+			if card == null or not card.upgrade():
+				return false
+		REWARD_REMOVE:
+			if run_deck.size() <= HAND_SIZE:
+				return false
+			var card := _find_card(option.card_id)
+			if card == null:
+				return false
+			run_deck.erase(card)
+		_:
+			return false
 	node_index += 1
 	_start_node()
 	return true
+
+
+func _build_reward_options(road_pool: Array[StringName]) -> void:
+	reward_options.clear()
+	if road_pool.is_empty():
+		return
+	reward_options.append({
+		"type": REWARD_ADD,
+		"road_id": road_pool[0],
+		"title": "ADD",
+	})
+	var upgrade_card := _first_upgrade_candidate()
+	if upgrade_card != null:
+		reward_options.append({
+			"type": REWARD_UPGRADE,
+			"road_id": upgrade_card.road_id,
+			"card_id": upgrade_card.instance_id,
+			"title": "UPGRADE",
+		})
+	var remove_card := _first_remove_candidate()
+	if remove_card != null:
+		reward_options.append({
+			"type": REWARD_REMOVE,
+			"road_id": remove_card.road_id,
+			"card_id": remove_card.instance_id,
+			"title": "REMOVE",
+		})
+
+
+func _create_card(road_id: StringName) -> CardState:
+	var card := CardState.new(next_card_instance_id, road_id)
+	next_card_instance_id += 1
+	return card
+
+
+func _find_card(instance_id: int) -> CardState:
+	for card in run_deck:
+		if card.instance_id == instance_id:
+			return card
+	return null
+
+
+func _first_upgrade_candidate() -> CardState:
+	for card in run_deck:
+		if card.can_upgrade():
+			return card
+	return null
+
+
+func _first_remove_candidate() -> CardState:
+	for card in run_deck:
+		if card.road_id in [RoadCatalog.UP_RAMP, RoadCatalog.DOWN_RAMP, RoadCatalog.TURN]:
+			return card
+	return run_deck.back() if run_deck.size() > HAND_SIZE else null
 
 
 func pop_events() -> Array[StringName]:
@@ -185,7 +271,7 @@ func rotate_selected() -> void:
 
 
 func selected_definition() -> RoadDefinition:
-	return RoadCatalog.get_definition(hand[selected_card_index])
+	return RoadCatalog.get_definition(hand[selected_card_index].road_id)
 
 
 func validate_selected(position: Vector2i) -> Dictionary:
@@ -198,10 +284,16 @@ func place_selected(position: Vector2i) -> Dictionary:
 	var result := validate_selected(position)
 	if not result.ok:
 		return result
-	result = board.place(selected_definition(), position, selected_quarter_turns)
+	result = board.place(
+		selected_definition(),
+		position,
+		selected_quarter_turns,
+		false,
+		hand[selected_card_index].level,
+	)
 	if not result.ok:
 		return result
-	var played_card := hand[selected_card_index]
+	var played_card: CardState = hand[selected_card_index]
 	deck.discard(played_card)
 	hand[selected_card_index] = deck.draw()
 	selected_quarter_turns = 0

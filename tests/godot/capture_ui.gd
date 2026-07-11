@@ -20,7 +20,7 @@ func _capture() -> void:
 	match mode:
 		"reward":
 			session.state = GameSession.REWARD
-			session.reward_options.assign([RoadCatalog.BRIDGE, RoadCatalog.STRAIGHT, RoadCatalog.UP_RAMP])
+			session._build_reward_options([RoadCatalog.BRIDGE, RoadCatalog.STRAIGHT, RoadCatalog.UP_RAMP])
 		"hazards":
 			session.node_index = 2
 			session._start_node()

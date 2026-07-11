@@ -297,15 +297,18 @@ func _draw_hand() -> void:
 	_draw_button(motion_rect, "FX LOW" if reduced_motion else "FX FULL", false)
 	for index in card_rects.size():
 		var rect := card_rects[index]
+		var card: CardState = session.hand[index]
 		var selected := index == session.selected_card_index
 		if selected and not reduced_motion:
 			rect = Rect2(rect.position + Vector2(0, -7), rect.size)
 		var fill := Color("26374f") if not selected else Color("44506a")
 		draw_style_box(_rounded_box(fill, SELECTED_COLOR if selected else GRID_COLOR, 3.0), rect)
-		var definition := RoadCatalog.get_definition(session.hand[index])
+		var definition := RoadCatalog.get_definition(card.road_id)
 		var turns := session.selected_quarter_turns if selected else 0
 		_draw_card_road(rect, definition, turns, BRIDGE_COLOR if definition.id == RoadCatalog.BRIDGE else ROAD_COLOR)
-		_draw_text(rect.position + Vector2(10, rect.size.y - 13), _road_label(definition.id), 13, TEXT_COLOR)
+		_draw_text(rect.position + Vector2(10, rect.size.y - 13), _road_label(definition.id) + card.level_suffix(), 13, TEXT_COLOR)
+		if card.level > 1:
+			_draw_text(rect.position + Vector2(8, 18), "ARMOR", 10, SELECTED_COLOR)
 		_draw_text(rect.position + Vector2(rect.size.x - 22, 22), str(index + 1), 12, MUTED_TEXT)
 
 
@@ -361,7 +364,10 @@ func _draw_hazards() -> void:
 					center + Vector2(offset + 6.0, 15.0),
 				]), spike_color)
 		elif hazard.type == GameSession.FALLING_ROCK:
-			if hazard.triggered:
+			if hazard.get("neutralized", false):
+				draw_circle(center, cell_size * 0.18, Color("446077"), false, 3.0)
+				_draw_text_centered(center + Vector2(0, 4), "OK", 10, SELECTED_COLOR)
+			elif hazard.triggered:
 				draw_circle(center, cell_size * 0.22, Color("3a2630"))
 				draw_line(center + Vector2(-8, -8), center + Vector2(8, 8), DANGER_COLOR, 3.0)
 				draw_line(center + Vector2(8, -8), center + Vector2(-8, 8), DANGER_COLOR, 3.0)
@@ -374,15 +380,18 @@ func _draw_hazards() -> void:
 func _draw_reward_overlay() -> void:
 	var overlay := Rect2(Vector2(0, size.y * 0.34), Vector2(size.x, size.y * 0.38))
 	draw_rect(overlay, Color(0.03, 0.05, 0.08, 0.96), true)
-	_draw_text_centered(Vector2(size.x * 0.5, overlay.position.y + 46), "CHOOSE A ROAD", 28, SELECTED_COLOR)
-	_draw_text_centered(Vector2(size.x * 0.5, overlay.position.y + 75), "Add one card before the next node", 14, TEXT_COLOR)
+	_draw_text_centered(Vector2(size.x * 0.5, overlay.position.y + 46), "TUNE YOUR DECK", 28, SELECTED_COLOR)
+	_draw_text_centered(Vector2(size.x * 0.5, overlay.position.y + 75), "Add, armor, or remove one road", 14, TEXT_COLOR)
 	for index in reward_rects.size():
 		var rect := reward_rects[index]
-		var road_id := session.reward_options[index]
+		var option: Dictionary = session.reward_options[index]
+		var road_id: StringName = option.road_id
 		var definition := RoadCatalog.get_definition(road_id)
 		draw_style_box(_rounded_box(Color("26374f"), GRID_COLOR, 2.0), rect)
 		_draw_card_road(rect, definition, 0, BRIDGE_COLOR if road_id == RoadCatalog.BRIDGE else ROAD_COLOR)
-		_draw_text_centered(rect.position + Vector2(rect.size.x * 0.5, rect.size.y - 14), _road_label(road_id), 12, TEXT_COLOR)
+		_draw_text_centered(rect.position + Vector2(rect.size.x * 0.5, 18), option.title, 11, SELECTED_COLOR)
+		var suffix := "+" if option.type == GameSession.REWARD_UPGRADE else ""
+		_draw_text_centered(rect.position + Vector2(rect.size.x * 0.5, rect.size.y - 14), _road_label(road_id) + suffix, 11, TEXT_COLOR)
 
 
 func _draw_center_message(title: String, subtitle: String) -> void:
@@ -400,6 +409,8 @@ func _draw_road(cell: Vector2i, road: Dictionary, color: Color) -> void:
 		var offset := Vector2(vector.x, vector.y) * cell_size * 0.5
 		draw_line(center, center + offset, road_color, maxf(5.0, cell_size * 0.14), true)
 	draw_circle(center, maxf(4.0, cell_size * 0.1), road_color)
+	if int(road.get("level", 1)) > 1:
+		draw_arc(center, cell_size * 0.24, 0.0, TAU, 20, SELECTED_COLOR, 2.0, true)
 
 
 func _draw_card_road(rect: Rect2, definition: RoadDefinition, turns: int, color: Color) -> void:
@@ -498,3 +509,7 @@ func _consume_game_events() -> void:
 				audio_cues.play_damage()
 			GameSession.EVENT_ROCK_FELL:
 				audio_cues.play_rock()
+			GameSession.EVENT_ROAD_SAVED:
+				feedback_text = "Armor absorbed the falling rock"
+				feedback_remaining = 2.2
+				audio_cues.play_reward()

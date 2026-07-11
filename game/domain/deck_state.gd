@@ -6,11 +6,11 @@ enum Mode {
 	SHUFFLE_DISCARD,
 }
 
-var cards: Array[StringName]
+var cards: Array
 var mode: Mode
 var fixed_index := 0
-var draw_pile: Array[StringName]
-var discard_pile: Array[StringName] = []
+var draw_pile: Array
+var discard_pile: Array = []
 var random_state: int
 
 
@@ -22,9 +22,9 @@ func _init(p_cards: Array, p_mode: Mode = Mode.FIXED_CYCLE, seed: int = 1) -> vo
 	random_state = seed & 0xffffffff
 
 
-func draw() -> StringName:
+func draw() -> Variant:
 	if mode == Mode.FIXED_CYCLE:
-		var card := cards[fixed_index % cards.size()]
+		var card: Variant = cards[fixed_index % cards.size()]
 		fixed_index += 1
 		return card
 
@@ -35,7 +35,7 @@ func draw() -> StringName:
 	return draw_pile.pop_front()
 
 
-func discard(card: StringName) -> void:
+func discard(card: Variant) -> void:
 	if mode == Mode.SHUFFLE_DISCARD:
 		discard_pile.append(card)
 
@@ -45,11 +45,11 @@ func _next_random() -> float:
 	return float(random_state) / 4294967296.0
 
 
-func _shuffle(items: Array[StringName]) -> Array[StringName]:
-	var result: Array[StringName] = items.duplicate()
+func _shuffle(items: Array) -> Array:
+	var result: Array = items.duplicate()
 	for index in range(result.size() - 1, 0, -1):
 		var swap_index := int(floor(_next_random() * float(index + 1)))
-		var temporary := result[index]
+		var temporary: Variant = result[index]
 		result[index] = result[swap_index]
 		result[swap_index] = temporary
 	return result

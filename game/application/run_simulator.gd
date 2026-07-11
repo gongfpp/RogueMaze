@@ -28,7 +28,7 @@ static func simulate(scenario: Dictionary) -> Dictionary:
 	var placements: Array = scenario.placements
 	for index in placements.size():
 		var placement: Dictionary = placements[index]
-		var card_id := deck.draw()
+		var card_id: StringName = deck.draw()
 		var result := board.place(
 			RoadCatalog.get_definition(card_id),
 			placement.position,

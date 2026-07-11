@@ -11,6 +11,7 @@ func _initialize() -> void:
 func _run_all() -> void:
 	_test_directions_and_roads()
 	_test_content_registry()
+	_test_card_progression()
 	_test_board_placement()
 	_test_deck_cycles()
 	_test_scenarios()
@@ -82,6 +83,60 @@ func _test_content_registry() -> void:
 	_expect_true(invalid.errors.size() >= 3, "content validation reports multiple authoring mistakes")
 
 
+func _test_card_progression() -> void:
+	var card := CardState.new(1, RoadCatalog.STRAIGHT)
+	_expect_equal(card.level, 1, "new card starts at level one")
+	_expect_true(card.upgrade(), "card upgrades once")
+	_expect_equal(card.level, CardState.MAX_LEVEL, "card reaches armor level")
+	_expect_equal(card.level_suffix(), "+", "upgraded card exposes readable suffix")
+	_expect_equal(card.upgrade(), false, "card cannot exceed max level")
+
+	var reward_session := GameSession.new()
+	reward_session.state = GameSession.REWARD
+	reward_session._build_reward_options([RoadCatalog.BRIDGE])
+	_expect_equal(reward_session.reward_options.size(), 3, "reward offers three deck actions")
+	_expect_equal(reward_session.reward_options[0].type, GameSession.REWARD_ADD, "first reward adds")
+	_expect_equal(reward_session.reward_options[1].type, GameSession.REWARD_UPGRADE, "second reward upgrades")
+	_expect_equal(reward_session.reward_options[2].type, GameSession.REWARD_REMOVE, "third reward removes")
+	var original_size := reward_session.run_deck.size()
+	_expect_true(reward_session.choose_reward(0), "add reward applies")
+	_expect_equal(reward_session.run_deck.size(), original_size + 1, "add reward grows deck")
+
+	var upgrade_session := GameSession.new()
+	upgrade_session.state = GameSession.REWARD
+	upgrade_session._build_reward_options([RoadCatalog.BRIDGE])
+	var upgrade_id: int = upgrade_session.reward_options[1].card_id
+	_expect_true(upgrade_session.choose_reward(1), "upgrade reward applies")
+	_expect_equal(upgrade_session._find_card(upgrade_id).level, 2, "upgrade reward changes chosen instance")
+	_expect_equal(upgrade_session.run_deck.size(), original_size, "upgrade reward keeps deck size")
+
+	var remove_session := GameSession.new()
+	remove_session.state = GameSession.REWARD
+	remove_session._build_reward_options([RoadCatalog.BRIDGE])
+	var remove_id: int = remove_session.reward_options[2].card_id
+	_expect_true(remove_session.choose_reward(2), "remove reward applies")
+	_expect_equal(remove_session._find_card(remove_id), null, "remove reward deletes chosen instance")
+	_expect_equal(remove_session.run_deck.size(), original_size - 1, "remove reward shrinks deck")
+
+	var armor_session := GameSession.new()
+	armor_session.node_index = 2
+	armor_session._start_node()
+	armor_session.board.place(
+		RoadCatalog.get_definition(RoadCatalog.STRAIGHT),
+		Vector2i(5, 2),
+		0,
+		true,
+		2,
+	)
+	var rock: Dictionary = armor_session.hazards[Vector2i(5, 2)]
+	rock.timer = 0.01
+	armor_session.countdown = 0.0
+	armor_session.update(0.02)
+	_expect_equal(armor_session.board.road_at(Vector2i(5, 2)).level, 1, "armor downgrades instead of breaking")
+	_expect_equal(rock.neutralized, true, "armor neutralizes the falling rock")
+	_expect_true(armor_session.pop_events().has(GameSession.EVENT_ROAD_SAVED), "armor save emits presentation event")
+
+
 func _test_board_placement() -> void:
 	var straight := RoadCatalog.get_definition(RoadCatalog.STRAIGHT)
 	var board := _new_board_with_start()
@@ -107,7 +162,7 @@ func _test_board_placement() -> void:
 func _draw_and_discard(deck: DeckState, count: int) -> Array[StringName]:
 	var result: Array[StringName] = []
 	for index in count:
-		var card := deck.draw()
+		var card: StringName = deck.draw()
 		result.append(card)
 		deck.discard(card)
 	return result
@@ -145,7 +200,7 @@ func _place_flat_route(session: GameSession) -> void:
 	for x in range(1, GameSession.BOARD_SIZE.x):
 		var flat_card_index := -1
 		for index in session.hand.size():
-			if session.hand[index] in [RoadCatalog.STRAIGHT, RoadCatalog.BRIDGE]:
+			if session.hand[index].road_id in [RoadCatalog.STRAIGHT, RoadCatalog.BRIDGE]:
 				flat_card_index = index
 				break
 		_expect_equal(flat_card_index >= 0, true, "flat route always has a usable card")
@@ -188,7 +243,7 @@ func _test_runner_and_session() -> void:
 	var placed := session.place_selected(Vector2i(1, 2))
 	_expect_true(placed.ok, "session places selected road")
 	_expect_equal(session.hand.size(), GameSession.HAND_SIZE, "placing refills hand")
-	_expect_equal(session.hand[0], session.content.starter_deck[4], "played slot receives next authored card")
+	_expect_equal(session.hand[0].road_id, session.content.starter_deck[4], "played slot receives next authored card")
 	_expect_equal(session.deck.fixed_index, 5, "placing advances deck draw index")
 	var hand_after_place := session.hand.duplicate()
 	var rejected := session.place_selected(Vector2i(1, 2))

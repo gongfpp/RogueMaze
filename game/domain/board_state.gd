@@ -69,6 +69,7 @@ func place(
 	position: Vector2i,
 	quarter_turns: int = 0,
 	allow_isolated: bool = false,
+	card_level: int = 1,
 ) -> Dictionary:
 	var validation := validate_placement(definition, position, quarter_turns, allow_isolated)
 	if not validation.ok:
@@ -79,6 +80,7 @@ func place(
 		"position": position,
 		"quarter_turns": DirectionRules.normalize_quarter_turns(quarter_turns),
 		"ports": definition.rotated_ports(quarter_turns),
+		"level": clampi(card_level, 1, CardState.MAX_LEVEL),
 	}
 	roads[position] = placed_road
 	return {
