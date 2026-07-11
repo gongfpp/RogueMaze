@@ -52,6 +52,12 @@ func save_progress() -> bool:
 	return _save_json_atomic(progress_path, progress)
 
 
+func save_all() -> bool:
+	var settings_saved := save_settings()
+	var progress_saved := save_progress()
+	return settings_saved and progress_saved
+
+
 func record_node_cleared(node_number: int) -> bool:
 	progress.best_node = maxi(progress.best_node, clampi(node_number, 0, GameSession.NODE_COUNT))
 	return save_progress()

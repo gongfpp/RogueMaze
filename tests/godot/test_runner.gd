@@ -270,11 +270,15 @@ func _test_runner_and_session() -> void:
 	_expect_equal(session.hand, hand_after_place, "rejected placement keeps hand")
 	_expect_true(session.select_card(3), "valid card selection")
 	_expect_equal(session.select_card(9), false, "invalid card selection")
+	_expect_true(session.set_paused(true), "active session can pause for lifecycle")
+	_expect_equal(session.paused, true, "lifecycle pause stores state")
+	_expect_true(session.set_paused(false), "active session can resume")
 
 	var expedition := GameSession.new()
 	_place_flat_route(expedition)
 	_advance_runner_to_end(expedition)
 	_expect_equal(expedition.state, GameSession.REWARD, "first node opens reward")
+	_expect_equal(expedition.set_paused(true), false, "reward screen rejects gameplay pause")
 	var deck_size_before := expedition.run_deck.size()
 	_expect_true(expedition.choose_reward(0), "choose a road reward")
 	_expect_equal(expedition.node_index, 1, "reward advances node")
@@ -360,6 +364,7 @@ func _test_persistence() -> void:
 	service.progress.expeditions_won = 4
 	service.progress.best_node = 2
 	_expect_true(service.save_progress(), "progress saves atomically")
+	_expect_true(service.save_all(), "save all flushes settings and progress")
 
 	var loaded := PersistenceService.new(service.settings_path, service.progress_path)
 	loaded.load_all()

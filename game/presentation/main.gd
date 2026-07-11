@@ -51,6 +51,20 @@ func _notification(what: int) -> void:
 	if what == NOTIFICATION_RESIZED and is_inside_tree():
 		_recalculate_layout()
 		queue_redraw()
+	elif what in [NOTIFICATION_APPLICATION_PAUSED, NOTIFICATION_WM_WINDOW_FOCUS_OUT]:
+		if session != null and session.set_paused(true):
+			feedback_text = "Paused while the app is away"
+			feedback_remaining = 2.0
+		if persistence != null:
+			persistence.save_all()
+	elif what == NOTIFICATION_WM_GO_BACK_REQUEST and OS.get_name() == "Android":
+		if session != null:
+			session.set_paused(true)
+
+
+func _exit_tree() -> void:
+	if persistence != null:
+		persistence.save_all()
 
 
 func _process(delta: float) -> void:

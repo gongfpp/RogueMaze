@@ -337,5 +337,11 @@ func place_selected(position: Vector2i) -> Dictionary:
 
 
 func toggle_pause() -> void:
-	if state == PLAYING:
-		paused = not paused
+	set_paused(not paused)
+
+
+func set_paused(value: bool) -> bool:
+	if state != PLAYING:
+		return false
+	paused = value
+	return true

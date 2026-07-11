@@ -1,0 +1,81 @@
+name: RogueMaze CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  GODOT_VERSION: 4.7-stable
+  GODOT_EDITOR: Godot_v4.7-stable_linux.x86_64
+
+jobs:
+  rules-and-godot-tests:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Download locked Godot editor
+        run: |
+          curl --fail --location --retry 3 \
+            "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}/${GODOT_EDITOR}.zip" \
+            --output godot.zip
+          unzip -q godot.zip
+          chmod +x "./${GODOT_EDITOR}"
+      - name: Run all rules and scene compile tests
+        env:
+          GODOT_BIN: ${{ github.workspace }}/${{ env.GODOT_EDITOR }}
+        run: ./scripts/test_all.sh
+
+  linux-release:
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    needs: rules-and-godot-tests
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download locked Godot editor
+        run: |
+          curl --fail --location --retry 3 \
+            "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}/${GODOT_EDITOR}.zip" \
+            --output godot.zip
+          unzip -q godot.zip
+          chmod +x "./${GODOT_EDITOR}"
+      - name: Restore export templates cache
+        id: template-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/share/godot/export_templates/4.7.stable
+          key: godot-export-templates-4.7-stable
+      - name: Install locked export templates
+        if: steps.template-cache.outputs.cache-hit != 'true'
+        run: |
+          curl --fail --location --retry 3 \
+            "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}/Godot_v4.7-stable_export_templates.tpz" \
+            --output templates.tpz
+          mkdir -p "$HOME/.local/share/godot/export_templates/4.7.stable"
+          unzip -q templates.tpz -d template-extract
+          mv template-extract/templates/* "$HOME/.local/share/godot/export_templates/4.7.stable/"
+      - name: Export Linux release
+        run: |
+          mkdir -p builds/linux
+          output=$("./${GODOT_EDITOR}" --headless --path . --export-release Linux builds/linux/RogueMaze.x86_64 2>&1)
+          printf '%s\n' "$output"
+          if grep -Eq 'Cannot export project with preset|Project export for preset .* failed|SCRIPT ERROR|Failed to load script' <<<"$output"; then
+            exit 1
+          fi
+          test -s builds/linux/RogueMaze.x86_64
+          chmod +x builds/linux/RogueMaze.x86_64
+      - uses: actions/upload-artifact@v4
+        with:
+          name: RogueMaze-linux-x86_64-${{ github.sha }}
+          path: builds/linux/RogueMaze.x86_64
+          if-no-files-found: error
+          retention-days: 14

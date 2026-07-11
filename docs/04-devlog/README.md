@@ -25,3 +25,4 @@
 - [2026-07-12：WP-032 构筑升级与移除](2026-07-12-WP-032-deck-tuning.md)
 - [2026-07-12：WP-033 五节点 Alpha](2026-07-12-WP-033-five-node-alpha.md)
 - [2026-07-12：WP-025A 移动导出基线](2026-07-12-WP-025A-mobile-export-baseline.md)
+- [2026-07-12：WP-025B 生命周期与 CI](2026-07-12-WP-025B-lifecycle-and-ci.md)
