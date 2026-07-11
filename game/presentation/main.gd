@@ -1,24 +1,326 @@
 extends Control
 
-@onready var result_label: Label = %ResultLabel
-@onready var run_button: Button = %RunButton
+const BACKGROUND := Color("101827")
+const BOARD_BACKGROUND := Color("18263a")
+const GRID_COLOR := Color("30445f")
+const ROAD_COLOR := Color("e9b84a")
+const BRIDGE_COLOR := Color("74d4c0")
+const TEXT_COLOR := Color("dce8f7")
+const MUTED_TEXT := Color("8296b3")
+const VALID_COLOR := Color(0.2, 0.85, 0.55, 0.22)
+const SELECTED_COLOR := Color("f7cf62")
+const DANGER_COLOR := Color("ef6a72")
+
+var session := GameSession.new()
+var board_rect := Rect2()
+var card_rects: Array[Rect2] = []
+var rotate_rect := Rect2()
+var pause_rect := Rect2()
+var restart_rect := Rect2()
+var cell_size := 0.0
+var dragging_card := false
+var drag_position := Vector2.ZERO
+var feedback_text := ""
+var feedback_remaining := 0.0
 
 
 func _ready() -> void:
-	run_button.pressed.connect(_run_rule_demo)
+	set_process(true)
+	_recalculate_layout()
+	queue_redraw()
 
 
-func _run_rule_demo() -> void:
-	var lines: Array[String] = []
-	for scenario in ScenarioFixtures.all():
-		var result := RunSimulator.simulate(scenario)
-		var suffix := ""
-		if not String(result.reason).is_empty():
-			suffix = " · %s" % result.reason
-		lines.append("%s：%s（第 %d 回合）%s" % [
-			scenario.title,
-			result.outcome,
-			result.turn,
-			suffix,
-		])
-	result_label.text = "\n".join(lines)
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_RESIZED and is_inside_tree():
+		_recalculate_layout()
+		queue_redraw()
+
+
+func _process(delta: float) -> void:
+	session.update(delta)
+	feedback_remaining = maxf(0.0, feedback_remaining - delta)
+	queue_redraw()
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if event.is_action_pressed("rotate_card"):
+		session.rotate_selected()
+		get_viewport().set_input_as_handled()
+	elif event.is_action_pressed("pause_game"):
+		session.toggle_pause()
+		get_viewport().set_input_as_handled()
+	else:
+		for index in GameSession.HAND_SIZE:
+			if event.is_action_pressed("select_card_%d" % (index + 1)):
+				session.select_card(index)
+				get_viewport().set_input_as_handled()
+
+
+func _gui_input(event: InputEvent) -> void:
+	if event is InputEventMouseButton:
+		if event.button_index == MOUSE_BUTTON_RIGHT and event.pressed:
+			session.rotate_selected()
+			accept_event()
+		elif event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
+			_begin_press(event.position)
+			accept_event()
+		elif event.button_index == MOUSE_BUTTON_LEFT and not event.pressed:
+			_end_press(event.position)
+			accept_event()
+	elif event is InputEventMouseMotion and dragging_card:
+		drag_position = event.position
+		accept_event()
+	elif event is InputEventScreenTouch and event.pressed:
+		_begin_press(event.position)
+		accept_event()
+	elif event is InputEventScreenTouch and not event.pressed:
+		_end_press(event.position)
+		accept_event()
+	elif event is InputEventScreenDrag and dragging_card:
+		drag_position = event.position
+		accept_event()
+
+
+func _begin_press(position: Vector2) -> void:
+	if restart_rect.has_point(position) and session.state != GameSession.PLAYING:
+		session.reset()
+		return
+	if pause_rect.has_point(position):
+		session.toggle_pause()
+		return
+	if rotate_rect.has_point(position):
+		session.rotate_selected()
+		return
+	for index in card_rects.size():
+		if card_rects[index].has_point(position):
+			session.select_card(index)
+			dragging_card = true
+			drag_position = position
+			return
+	if board_rect.has_point(position):
+		var local := position - board_rect.position
+		var cell := Vector2i(floori(local.x / cell_size), floori(local.y / cell_size))
+		_try_place(cell)
+
+
+func _end_press(position: Vector2) -> void:
+	if dragging_card and board_rect.has_point(position):
+		var local := position - board_rect.position
+		var cell := Vector2i(floori(local.x / cell_size), floori(local.y / cell_size))
+		_try_place(cell)
+	dragging_card = false
+
+
+func _try_place(cell: Vector2i) -> void:
+	var result := session.place_selected(cell)
+	feedback_text = "Road placed" if result.ok else _failure_label(result.get("reason", &"UNKNOWN"))
+	feedback_remaining = 1.35
+
+
+func _recalculate_layout() -> void:
+	var padding := clampf(size.x * 0.045, 18.0, 40.0)
+	cell_size = floorf(minf(
+		(size.x - padding * 2.0) / float(GameSession.BOARD_SIZE.x),
+		(size.y * 0.43) / float(GameSession.BOARD_SIZE.y),
+	))
+	var board_size := Vector2(cell_size * GameSession.BOARD_SIZE.x, cell_size * GameSession.BOARD_SIZE.y)
+	board_rect = Rect2(Vector2((size.x - board_size.x) * 0.5, size.y * 0.17), board_size)
+
+	var card_gap := clampf(size.x * 0.018, 8.0, 16.0)
+	var card_width := (size.x - padding * 2.0 - card_gap * 3.0) / 4.0
+	var card_height := clampf(size.y * 0.15, 96.0, 128.0)
+	var hand_y := maxf(board_rect.end.y + 70.0, size.y - card_height - 24.0)
+	hand_y = minf(hand_y, size.y - card_height - 16.0)
+	card_rects.clear()
+	for index in GameSession.HAND_SIZE:
+		card_rects.append(Rect2(
+			Vector2(padding + (card_width + card_gap) * index, hand_y),
+			Vector2(card_width, card_height),
+		))
+	rotate_rect = Rect2(Vector2(padding, hand_y - 54.0), Vector2(150.0, 42.0))
+	pause_rect = Rect2(Vector2(size.x - padding - 116.0, 34.0), Vector2(116.0, 46.0))
+	restart_rect = Rect2(Vector2((size.x - 220.0) * 0.5, size.y * 0.58), Vector2(220.0, 58.0))
+
+
+func _draw() -> void:
+	draw_rect(Rect2(Vector2.ZERO, size), BACKGROUND)
+	_draw_header()
+	_draw_board()
+	_draw_hand()
+	_draw_dragged_card()
+	_draw_state_overlay()
+
+
+func _draw_header() -> void:
+	_draw_text(Vector2(28.0, 56.0), "ROGUE MAZE", 30, SELECTED_COLOR)
+	var status := "Build the road before the runner arrives"
+	if session.countdown > 0.0:
+		status = "Runner starts in %.1f" % session.countdown
+	elif session.runner.status == RunnerState.WAITING:
+		status = "Road missing · %.1fs" % maxf(0.0, session.runner.blocked_remaining)
+	if feedback_remaining > 0.0:
+		status = feedback_text
+	_draw_text(Vector2(28.0, 91.0), status, 17, MUTED_TEXT)
+	_draw_button(pause_rect, "RESUME" if session.paused else "PAUSE", false)
+
+
+func _draw_board() -> void:
+	draw_rect(board_rect, BOARD_BACKGROUND, true)
+	var selected := session.selected_definition()
+	for y in GameSession.BOARD_SIZE.y:
+		for x in GameSession.BOARD_SIZE.x:
+			var cell := Vector2i(x, y)
+			var rect := _cell_rect(cell)
+			if session.board.road_at(cell).is_empty():
+				var validation := session.board.validate_placement(
+					selected,
+					cell,
+					session.selected_quarter_turns,
+				)
+				if validation.ok:
+					draw_rect(rect.grow(-2.0), VALID_COLOR, true)
+			draw_rect(rect, GRID_COLOR, false, 1.0)
+
+	for cell in session.board.roads:
+		_draw_road(cell, session.board.roads[cell], ROAD_COLOR)
+
+	var finish_center := _cell_center(GameSession.FINISH)
+	draw_line(finish_center + Vector2(0, 18), finish_center + Vector2(0, -22), TEXT_COLOR, 3.0)
+	draw_colored_polygon(PackedVector2Array([
+		finish_center + Vector2(2, -22),
+		finish_center + Vector2(24, -14),
+		finish_center + Vector2(2, -6),
+	]), SELECTED_COLOR)
+
+	var runner_position := board_rect.position + (session.runner.display_position() + Vector2(0.5, 0.5)) * cell_size
+	draw_circle(runner_position, cell_size * 0.18, Color("f2f5f9"))
+	draw_circle(runner_position + Vector2(cell_size * 0.06, -cell_size * 0.035), cell_size * 0.025, BACKGROUND)
+
+	if dragging_card and board_rect.has_point(drag_position):
+		var local := drag_position - board_rect.position
+		var preview_cell := Vector2i(floori(local.x / cell_size), floori(local.y / cell_size))
+		var validation := session.validate_selected(preview_cell)
+		var preview_color := VALID_COLOR if validation.ok else Color(0.94, 0.25, 0.32, 0.28)
+		draw_rect(_cell_rect(preview_cell).grow(-2.0), preview_color, true)
+		if validation.ok:
+			_draw_road(preview_cell, {
+				"definition": session.selected_definition(),
+				"ports": session.selected_definition().rotated_ports(session.selected_quarter_turns),
+			}, Color(ROAD_COLOR, 0.65))
+
+
+func _draw_hand() -> void:
+	_draw_button(rotate_rect, "ROTATE  R", false)
+	for index in card_rects.size():
+		var rect := card_rects[index]
+		var selected := index == session.selected_card_index
+		var fill := Color("26374f") if not selected else Color("44506a")
+		draw_style_box(_rounded_box(fill, SELECTED_COLOR if selected else GRID_COLOR, 3.0), rect)
+		var definition := RoadCatalog.get_definition(session.hand[index])
+		var turns := session.selected_quarter_turns if selected else 0
+		_draw_card_road(rect, definition, turns, BRIDGE_COLOR if definition.id == RoadCatalog.BRIDGE else ROAD_COLOR)
+		_draw_text(rect.position + Vector2(10, rect.size.y - 13), _road_label(definition.id), 13, TEXT_COLOR)
+		_draw_text(rect.position + Vector2(rect.size.x - 22, 22), str(index + 1), 12, MUTED_TEXT)
+
+
+func _draw_state_overlay() -> void:
+	if session.paused and session.state == GameSession.PLAYING:
+		_draw_center_message("PAUSED", "Tap pause or press Space")
+	elif session.state == GameSession.WON:
+		_draw_center_message("ROUTE COMPLETE", "The runner reached the exit")
+		_draw_button(restart_rect, "PLAY AGAIN", true)
+	elif session.state == GameSession.LOST:
+		_draw_center_message("ROAD BROKEN", "Build farther ahead next time")
+		_draw_button(restart_rect, "TRY AGAIN", true)
+
+
+func _draw_dragged_card() -> void:
+	if not dragging_card or board_rect.has_point(drag_position):
+		return
+	var ghost := Rect2(drag_position - Vector2(42, 48), Vector2(84, 96))
+	draw_style_box(_rounded_box(Color(0.15, 0.22, 0.32, 0.88), SELECTED_COLOR, 2.0), ghost)
+	_draw_card_road(
+		ghost,
+		session.selected_definition(),
+		session.selected_quarter_turns,
+		ROAD_COLOR,
+	)
+
+
+func _draw_center_message(title: String, subtitle: String) -> void:
+	var overlay := Rect2(Vector2(0, size.y * 0.38), Vector2(size.x, size.y * 0.28))
+	draw_rect(overlay, Color(0.03, 0.05, 0.08, 0.92), true)
+	_draw_text_centered(Vector2(size.x * 0.5, overlay.position.y + 70), title, 34, SELECTED_COLOR)
+	_draw_text_centered(Vector2(size.x * 0.5, overlay.position.y + 108), subtitle, 17, TEXT_COLOR)
+
+
+func _draw_road(cell: Vector2i, road: Dictionary, color: Color) -> void:
+	var center := _cell_center(cell)
+	var road_color := BRIDGE_COLOR if road.definition.id == RoadCatalog.BRIDGE else color
+	for direction in road.ports:
+		var vector := DirectionRules.vector(direction)
+		var offset := Vector2(vector.x, vector.y) * cell_size * 0.5
+		draw_line(center, center + offset, road_color, maxf(5.0, cell_size * 0.14), true)
+	draw_circle(center, maxf(4.0, cell_size * 0.1), road_color)
+
+
+func _draw_card_road(rect: Rect2, definition: RoadDefinition, turns: int, color: Color) -> void:
+	var center := rect.position + Vector2(rect.size.x * 0.5, rect.size.y * 0.43)
+	var length := minf(rect.size.x, rect.size.y) * 0.32
+	for direction in definition.rotated_ports(turns):
+		var vector := DirectionRules.vector(direction)
+		draw_line(center, center + Vector2(vector.x, vector.y) * length, color, 7.0, true)
+	draw_circle(center, 5.0, color)
+
+
+func _draw_button(rect: Rect2, label: String, prominent: bool) -> void:
+	var fill := Color("d79d32") if prominent else Color("26374f")
+	var text_color := BACKGROUND if prominent else TEXT_COLOR
+	draw_style_box(_rounded_box(fill, SELECTED_COLOR if prominent else GRID_COLOR, 2.0), rect)
+	var baseline := rect.position + Vector2(rect.size.x * 0.5, rect.size.y * 0.5 + 6.0)
+	_draw_text_centered(baseline, label, 15, text_color)
+
+
+func _rounded_box(fill: Color, border: Color, width: float) -> StyleBoxFlat:
+	var box := StyleBoxFlat.new()
+	box.bg_color = fill
+	box.border_color = border
+	box.set_border_width_all(int(width))
+	box.set_corner_radius_all(10)
+	return box
+
+
+func _cell_rect(cell: Vector2i) -> Rect2:
+	return Rect2(board_rect.position + Vector2(cell) * cell_size, Vector2.ONE * cell_size)
+
+
+func _cell_center(cell: Vector2i) -> Vector2:
+	return board_rect.position + (Vector2(cell) + Vector2(0.5, 0.5)) * cell_size
+
+
+func _road_label(road_id: StringName) -> String:
+	match road_id:
+		RoadCatalog.STRAIGHT: return "STRAIGHT"
+		RoadCatalog.UP_RAMP: return "RAMP UP"
+		RoadCatalog.DOWN_RAMP: return "RAMP DOWN"
+		RoadCatalog.TURN: return "TURN"
+		RoadCatalog.BRIDGE: return "BRIDGE"
+		_: return String(road_id).to_upper()
+
+
+func _failure_label(reason: StringName) -> String:
+	match reason:
+		BoardState.OUT_OF_BOUNDS: return "Outside the board"
+		BoardState.OCCUPIED: return "That cell is occupied"
+		BoardState.PORT_MISMATCH: return "Road ports do not match"
+		BoardState.ISOLATED: return "Connect to an existing road"
+		_: return "Cannot place road now"
+
+
+func _draw_text(position: Vector2, text: String, font_size: int, color: Color) -> void:
+	draw_string(get_theme_default_font(), position, text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, color)
+
+
+func _draw_text_centered(position: Vector2, text: String, font_size: int, color: Color) -> void:
+	var width := get_theme_default_font().get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
+	_draw_text(position - Vector2(width * 0.5, 0), text, font_size, color)

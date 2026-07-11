@@ -13,6 +13,7 @@ func _run_all() -> void:
 	_test_board_placement()
 	_test_deck_cycles()
 	_test_scenarios()
+	_test_runner_and_session()
 	if failures > 0:
 		push_error("Godot rules: %d assertion(s), %d failure(s)" % [assertions, failures])
 		quit(1)
@@ -111,3 +112,52 @@ func _test_scenarios() -> void:
 		_expect_equal(result.turn, expected.turn, "%s turn" % scenario.id)
 		if expected.has("reason"):
 			_expect_equal(result.reason, expected.reason, "%s reason" % scenario.id)
+
+
+func _test_runner_and_session() -> void:
+	var board := BoardState.new(3, 1)
+	var straight := RoadCatalog.get_definition(RoadCatalog.STRAIGHT)
+	board.place(straight, Vector2i(0, 0), 0, true)
+	board.place(straight, Vector2i(1, 0))
+	board.place(straight, Vector2i(2, 0))
+	var runner := RunnerState.new(Vector2i(0, 0), 1.0, 0.25)
+	runner.update(1.0, board, Vector2i(2, 0))
+	_expect_equal(runner.current_position, Vector2i(1, 0), "runner enters next road")
+	runner.update(1.0, board, Vector2i(2, 0))
+	_expect_equal(runner.current_position, Vector2i(2, 0), "runner reaches finish cell")
+	_expect_equal(runner.status, RunnerState.REACHED, "runner reports reached")
+
+	var blocked_board := BoardState.new(2, 1)
+	blocked_board.place(straight, Vector2i(0, 0), 0, true)
+	var blocked_runner := RunnerState.new(Vector2i(0, 0), 1.0, 0.25)
+	blocked_runner.update(0.3, blocked_board, Vector2i(1, 0))
+	_expect_equal(blocked_runner.status, RunnerState.FAILED, "runner fails after blocked grace")
+
+	var session := GameSession.new()
+	_expect_equal(session.hand.size(), GameSession.HAND_SIZE, "session deals four cards")
+	var placed := session.place_selected(Vector2i(1, 2))
+	_expect_true(placed.ok, "session places selected road")
+	_expect_equal(session.hand.size(), GameSession.HAND_SIZE, "placing refills hand")
+	_expect_equal(session.hand[0], GameSession.STARTER_DECK[4], "played slot receives next authored card")
+	_expect_equal(session.deck.fixed_index, 5, "placing advances deck draw index")
+	var hand_after_place := session.hand.duplicate()
+	var rejected := session.place_selected(Vector2i(1, 2))
+	_expect_equal(rejected.reason, BoardState.OCCUPIED, "session preserves board rejection")
+	_expect_equal(session.hand, hand_after_place, "rejected placement keeps hand")
+	_expect_true(session.select_card(3), "valid card selection")
+	_expect_equal(session.select_card(9), false, "invalid card selection")
+
+	var winning_session := GameSession.new()
+	for x in range(1, GameSession.BOARD_SIZE.x):
+		var flat_card_index := -1
+		for index in winning_session.hand.size():
+			if winning_session.hand[index] in [RoadCatalog.STRAIGHT, RoadCatalog.BRIDGE]:
+				flat_card_index = index
+				break
+		_expect_equal(flat_card_index >= 0, true, "flat route always has a usable card")
+		winning_session.select_card(flat_card_index)
+		_expect_true(winning_session.place_selected(Vector2i(x, 2)).ok, "place full route cell %d" % x)
+	winning_session.countdown = 0.0
+	for step in GameSession.BOARD_SIZE.x - 1:
+		winning_session.update(2.0)
+	_expect_equal(winning_session.state, GameSession.WON, "complete flat route wins session")

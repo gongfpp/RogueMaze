@@ -5,9 +5,9 @@
 ## 当前状态
 
 - 阶段：P0 立项与预制作
-- 当前版本：Godot 工程骨架 v0.1
-- 已完成：项目管理基线、规则原型、Godot 规则移植、Windows/Linux 导出
-- 当前连续工作：`WP-012~015 自动行进、放路、卡牌与单局闭环`
+- 当前版本：可玩灰盒 v0.1
+- 已完成：规则与工程基线、自动行进、拼路交互、循环手牌、胜负闭环、Windows/Linux 导出
+- 当前连续工作：`WP-016 原型试玩评审`，随后进入垂直切片
 - 锁定技术栈：Godot 4.7 stable + GDScript + Compatibility 渲染
 - 远端仓库：`https://github.com/gongfpp/RogueMaze.git`
 
@@ -36,6 +36,8 @@ npm test
 ```
 
 Node 原型见 [prototypes/rules](prototypes/rules/README.md)，Godot 规则位于 `game/domain`。Node 代码不会进入正式游戏包。
+
+当前灰盒操作：点击或拖动手牌到绿色格子；`R`/右键旋转；数字键 `1–4` 选牌；空格暂停。角色会在 4 秒后自动出发，抵达旗帜胜利，断路超过宽限时间失败。
 
 ## 每轮协作约定
 

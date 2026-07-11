@@ -3,7 +3,8 @@
 *.tmp
 
 # Exported builds
-builds/
+builds/*
+!builds/.gdignore
 exports/
 
 # Mobile signing and local secrets
