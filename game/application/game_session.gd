@@ -9,6 +9,7 @@ const LOST: StringName = &"LOST"
 const SPIKES: StringName = &"SPIKES"
 const FALLING_ROCK: StringName = &"FALLING_ROCK"
 const STEAM_VENT: StringName = &"STEAM_VENT"
+const REPAIR_PAD: StringName = &"REPAIR_PAD"
 const ROAD_MISSING: StringName = &"ROAD_MISSING"
 const ROCK_HIT: StringName = &"ROCK_HIT"
 const NO_HEALTH: StringName = &"NO_HEALTH"
@@ -20,6 +21,7 @@ const EVENT_SPIKE_HIT: StringName = &"SPIKE_HIT"
 const EVENT_ROCK_FELL: StringName = &"ROCK_FELL"
 const EVENT_ROAD_SAVED: StringName = &"ROAD_SAVED"
 const EVENT_STEAM_HIT: StringName = &"STEAM_HIT"
+const EVENT_REPAIRED: StringName = &"REPAIRED"
 
 const REWARD_ADD: StringName = &"ADD"
 const REWARD_UPGRADE: StringName = &"UPGRADE"
@@ -114,6 +116,12 @@ func _configure_hazards() -> void:
 				"damage": definition.damage,
 				"spent": false,
 			}
+		elif definition.type == REPAIR_PAD:
+			hazards[position] = {
+				"type": REPAIR_PAD,
+				"healing": definition.healing,
+				"spent": false,
+			}
 
 
 func update(delta: float) -> void:
@@ -194,6 +202,10 @@ func _apply_entered_cell_hazard(position: Vector2i) -> void:
 			failure_reason = NO_HEALTH
 			state = LOST
 			events.append(EVENT_RUN_LOST)
+	elif hazard.type == REPAIR_PAD and not hazard.spent and health < max_health:
+		hazard.spent = true
+		health = mini(max_health, health + int(hazard.healing))
+		events.append(EVENT_REPAIRED)
 
 
 func is_steam_active(hazard: Dictionary) -> bool:

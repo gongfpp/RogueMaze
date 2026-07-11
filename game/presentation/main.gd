@@ -241,7 +241,7 @@ func _draw() -> void:
 func _draw_header() -> void:
 	_draw_text(safe_rect.position + Vector2(28.0, 56.0), "ROGUE MAZE", 30, SELECTED_COLOR)
 	var node_title: String = session.content.node(session.node_index).get("title", "")
-	var status := "%s · BUILD THE ROAD" % node_title
+	var status := _node_instruction()
 	if session.countdown > 0.0:
 		status = "%s · START %.1f" % [node_title, session.countdown]
 	elif session.runner.status == RunnerState.WAITING:
@@ -271,6 +271,16 @@ func _draw_header() -> void:
 		MUTED_TEXT,
 	)
 	_draw_button(pause_rect, "RESUME" if session.paused else "PAUSE", false)
+
+
+func _node_instruction() -> String:
+	match session.node_index:
+		0: return "BUILD BEFORE THE RUNNER"
+		1: return "RED SPIKES HURT · GO ABOVE"
+		2: return "TEAL + HEALS · STEAM CYCLES"
+		3: return "ARMOR + STOPS ONE ROCK"
+		4: return "FINAL · COMBINE YOUR TOOLS"
+		_: return "BUILD THE ROAD"
 
 
 func _draw_board() -> void:
@@ -417,6 +427,11 @@ func _draw_hazards() -> void:
 				for offset in [-10.0, 0.0, 10.0]:
 					draw_line(center + Vector2(offset, 7), center + Vector2(offset + 4, -15), steam_color, 3.0, true)
 			_draw_text_centered(center + Vector2(0, cell_size * 0.37), "%.1f" % session.steam_time_to_change(hazard), 10, steam_color)
+		elif hazard.type == GameSession.REPAIR_PAD:
+			var repair_color := Color("48606e") if hazard.spent else BRIDGE_COLOR
+			draw_circle(center, cell_size * 0.2, repair_color, false, 3.0)
+			draw_line(center + Vector2(-8, 0), center + Vector2(8, 0), repair_color, 4.0, true)
+			draw_line(center + Vector2(0, -8), center + Vector2(0, 8), repair_color, 4.0, true)
 
 
 func _draw_reward_overlay() -> void:
@@ -559,3 +574,7 @@ func _consume_game_events() -> void:
 				feedback_text = "Steam vent burned 1 HP"
 				feedback_remaining = 2.0
 				audio_cues.play_damage()
+			GameSession.EVENT_REPAIRED:
+				feedback_text = "Repair pad restored 1 HP"
+				feedback_remaining = 2.0
+				audio_cues.play_reward()

@@ -67,6 +67,7 @@ func _test_content_registry() -> void:
 	_expect_equal(content.nodes.size(), GameSession.NODE_COUNT, "content defines the expedition nodes")
 	_expect_equal(content.node(1).hazards[0].damage, 1, "hazard damage comes from content")
 	_expect_equal(content.node(2).hazards[0].cycle, 4.0, "steam cycle comes from content")
+	_expect_equal(content.node(2).hazards[1].healing, 1, "repair healing comes from content")
 	_expect_equal(content.node(3).hazards[1].timer, 8.0, "rock timer comes from content")
 
 	var invalid := ContentRegistry.from_data({
@@ -154,6 +155,18 @@ func _test_card_progression() -> void:
 	_expect_equal(safe_steam_session.is_steam_active(safe_steam), false, "steam has a readable safe phase")
 	safe_steam_session._apply_entered_cell_hazard(Vector2i(4, 2))
 	_expect_equal(safe_steam_session.health, 3, "inactive steam can be crossed safely")
+
+	var repair_session := GameSession.new()
+	repair_session.node_index = 2
+	repair_session.health = 2
+	repair_session._start_node()
+	var repair: Dictionary = repair_session.hazards[Vector2i(4, 0)]
+	repair_session._apply_entered_cell_hazard(Vector2i(4, 0))
+	_expect_equal(repair_session.health, 3, "repair pad restores authored health")
+	_expect_equal(repair.spent, true, "repair pad is consumed after healing")
+	_expect_true(repair_session.pop_events().has(GameSession.EVENT_REPAIRED), "repair emits presentation event")
+	repair_session._apply_entered_cell_hazard(Vector2i(4, 0))
+	_expect_equal(repair_session.health, 3, "spent repair pad cannot heal twice")
 
 
 func _test_board_placement() -> void:
@@ -306,7 +319,7 @@ func _test_runner_and_session() -> void:
 	_expect_equal(expedition.state, GameSession.REWARD, "fourth node opens final deck choice")
 	_expect_true(expedition.choose_reward(2), "remove a card before final node")
 	_expect_equal(expedition.node_index, 4, "fourth reward advances to pressure core")
-	_expect_equal(expedition.hazards.size(), 3, "final node combines all three hazards")
+	_expect_equal(expedition.hazards.size(), 4, "final node combines three hazards and one repair route")
 	expedition.hazards.clear()
 	_place_flat_route(expedition)
 	_advance_runner_to_end(expedition)
