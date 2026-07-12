@@ -45,6 +45,15 @@ func _ready() -> void:
 	set_process(true)
 	_recalculate_layout()
 	queue_redraw()
+	if OS.get_cmdline_user_args().has("--smoke"):
+		call_deferred("_complete_smoke_test")
+
+
+func _complete_smoke_test() -> void:
+	await get_tree().process_frame
+	await get_tree().process_frame
+	print("RogueMaze smoke: main scene ready")
+	get_tree().quit(0)
 
 
 func _notification(what: int) -> void:

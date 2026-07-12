@@ -24,6 +24,10 @@
 - 推送 `d57802a` 后，Actions 运行 `29178277837` 在 `rules-and-godot-tests` 失败。
 - Godot 4.7 Linux 编辑器下载成功；失败发生在运行测试脚本前：`scripts/test_all.sh: Permission denied`，退出码 126。
 - 根因是 Windows 工作区提交时 shell 脚本保留为 `100644`。修复同时提交 Git 可执行位，并在 CI 中显式 `chmod +x scripts/*.sh`，避免未来工具再次丢失模式位。
+- 修复提交 `06a9fb1` 触发运行 `29178388977`：`rules-and-godot-tests` 与 `linux-release` 均成功，Linux artifact 上传完成。这是首次真实 Ubuntu 24.04 远端绿灯。
+- 该运行证明 Linux 环境能测试和导出，但尚未启动发布二进制；下一轮给正式包增加自退出 smoke 模式并纳入 CI。
+- Windows 首次 smoke 使用 GUI 入口 `RogueMaze.exe`，PowerShell 无法可靠接收其标准输出，门禁正确失败。改用 Godot 同次导出的 `RogueMaze.console.exe` 包装器后，收到 `RogueMaze smoke: main scene ready` 且退出码为 0；游戏内容仍来自同一嵌入 PCK。
+- 修复后本地 `build_releases.ps1 -Desktop` 完整通过：15 项 Node、214 项 Godot、Windows/Linux release 导出、Windows 正式包主场景 smoke 全部成功。
 
 ## 下一步
 

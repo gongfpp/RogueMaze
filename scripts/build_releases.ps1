@@ -20,6 +20,18 @@ function Invoke-GodotExport([string[]]$Arguments) {
     }
 }
 
+function Invoke-WindowsSmokeTest() {
+    $smokeBinary = '.\builds\windows\RogueMaze.console.exe'
+    if (-not (Test-Path -LiteralPath $smokeBinary)) {
+        throw "Windows console wrapper is missing."
+    }
+    $output = & $smokeBinary --headless -- --smoke 2>&1
+    $output | ForEach-Object { Write-Host $_ }
+    if ($LASTEXITCODE -ne 0 -or ($output -join "`n") -notmatch 'RogueMaze smoke: main scene ready') {
+        throw "Windows release smoke test failed."
+    }
+}
+
 Push-Location $projectRoot
 try {
     if (-not $Android -and -not $Desktop) {
@@ -31,6 +43,7 @@ try {
     if ($Desktop) {
         New-Item -ItemType Directory -Force builds\windows, builds\linux | Out-Null
         Invoke-GodotExport @('--headless', '--path', '.', '--export-release', 'Windows Desktop', 'builds\windows\RogueMaze.exe')
+        Invoke-WindowsSmokeTest
         Invoke-GodotExport @('--headless', '--path', '.', '--export-release', 'Linux', 'builds\linux\RogueMaze.x86_64')
     }
 
