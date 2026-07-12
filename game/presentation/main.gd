@@ -52,6 +52,16 @@ func _ready() -> void:
 func _complete_smoke_test() -> void:
 	await get_tree().process_frame
 	await get_tree().process_frame
+	for legal_path in [
+		"res://assets/legal/GODOT_LICENSE.txt",
+		"res://assets/legal/GODOT_COPYRIGHT.txt",
+		"res://assets/legal/CREDITS.txt",
+	]:
+		if not FileAccess.file_exists(legal_path):
+			push_error("Release smoke: missing legal notice %s" % legal_path)
+			get_tree().quit(1)
+			return
+	print("RogueMaze smoke: legal notices ready")
 	print("RogueMaze smoke: main scene ready")
 	get_tree().quit(0)
 
@@ -368,6 +378,7 @@ func _draw_hand() -> void:
 func _draw_state_overlay() -> void:
 	if session.paused and session.state == GameSession.PLAYING:
 		_draw_center_message("PAUSED", "Tap pause or press Space")
+		_draw_credits_note()
 	elif session.state == GameSession.REWARD:
 		_draw_reward_overlay()
 	elif session.state == GameSession.WON:
@@ -465,6 +476,13 @@ func _draw_center_message(title: String, subtitle: String) -> void:
 	draw_rect(overlay, Color(0.03, 0.05, 0.08, 0.92), true)
 	_draw_text_centered(Vector2(size.x * 0.5, overlay.position.y + 70), title, 34, SELECTED_COLOR)
 	_draw_text_centered(Vector2(size.x * 0.5, overlay.position.y + 108), subtitle, 17, TEXT_COLOR)
+
+
+func _draw_credits_note() -> void:
+	var center_x := safe_rect.position.x + safe_rect.size.x * 0.5
+	var y := safe_rect.position.y + safe_rect.size.y * 0.38 + 142.0
+	_draw_text_centered(Vector2(center_x, y), "Built with Godot Engine 4.7 · MIT", 12, MUTED_TEXT)
+	_draw_text_centered(Vector2(center_x, y + 20.0), "Full notices are included in the game package", 11, MUTED_TEXT)
 
 
 func _draw_road(cell: Vector2i, road: Dictionary, color: Color) -> void:

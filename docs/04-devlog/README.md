@@ -27,3 +27,4 @@
 - [2026-07-12：WP-025A 移动导出基线](2026-07-12-WP-025A-mobile-export-baseline.md)
 - [2026-07-12：WP-025B 生命周期与 CI](2026-07-12-WP-025B-lifecycle-and-ci.md)
 - [2026-07-12：WP-034 维修支路](2026-07-12-WP-034-repair-routes.md)
+- [2026-07-12：WP-035 发行声明与成品冒烟](2026-07-12-WP-035-release-notices.md)

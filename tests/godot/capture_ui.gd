@@ -25,6 +25,8 @@ func _capture() -> void:
 			session.node_index = 2
 			session._start_node()
 			session.countdown = 0.0
+		"pause":
+			session.set_paused(true)
 		"start":
 			pass
 		_:

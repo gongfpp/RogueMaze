@@ -51,7 +51,7 @@ Godot 是便携程序，不需要安装到系统：
 | 平台 | 当前能做到什么 | 还缺什么 |
 | --- | --- | --- |
 | Windows x86_64 | 本机全量测试、release 导出和控制台包装器成品 smoke 均通过 | Beta 前补更多分辨率与 20 分钟人工回归 |
-| Linux x86_64 | Windows 本机和 Ubuntu 24.04 CI 均可导出；CI artifact 已上传 | 增加正式二进制启动 smoke 后完成自动冒烟证据 |
+| Linux x86_64 | Windows 本机与 Ubuntu 24.04 CI 可导出；正式二进制 smoke 和 artifact 上传已通过 | Beta 前补真实桌面交互与 20 分钟人工回归 |
 | Android | arm64 APK 预设、Godot 模板、JDK 17、检查/构建脚本已就绪 | 有权主体接受 Android SDK 许可后安装锁定 SDK；生成 APK 并上真机 |
 | iOS | arm64 Xcode 工程预设、临时 Team ID 注入脚本已就绪 | 必须有 macOS、Xcode、Team ID、签名和 iPhone/iPad |
 

@@ -27,7 +27,12 @@ function Invoke-WindowsSmokeTest() {
     }
     $output = & $smokeBinary --headless -- --smoke 2>&1
     $output | ForEach-Object { Write-Host $_ }
-    if ($LASTEXITCODE -ne 0 -or ($output -join "`n") -notmatch 'RogueMaze smoke: main scene ready') {
+    $text = $output -join "`n"
+    if (
+        $LASTEXITCODE -ne 0 -or
+        $text -notmatch 'RogueMaze smoke: legal notices ready' -or
+        $text -notmatch 'RogueMaze smoke: main scene ready'
+    ) {
         throw "Windows release smoke test failed."
     }
 }

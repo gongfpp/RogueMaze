@@ -1,0 +1,12 @@
+RogueMaze
+
+Game design, code and documentation: RogueMaze project contributors.
+Engine: Godot Engine 4.7 stable, licensed under the MIT license.
+Godot copyright and third-party license details: GODOT_COPYRIGHT.txt.
+
+Paper-mechanical background and app icon were generated for this project with
+the Codex built-in image generation tool. Prompts, purpose and file hashes are
+recorded under assets/art/README.md and assets/art/icons/README.md.
+
+No external music, font, analytics SDK or advertising SDK is included in the
+Alpha 0.4 build.
