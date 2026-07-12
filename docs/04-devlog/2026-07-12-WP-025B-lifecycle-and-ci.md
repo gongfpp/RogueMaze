@@ -19,6 +19,12 @@
 - 主场景经过编辑器完整扫描，无通知常量或生命周期脚本编译错误。
 - CI 工作流已做静态审阅；只有提交推送后才能取得 GitHub 执行证据，因此当前不能写成“CI 已通过”。
 
+## 首次远端执行
+
+- 推送 `d57802a` 后，Actions 运行 `29178277837` 在 `rules-and-godot-tests` 失败。
+- Godot 4.7 Linux 编辑器下载成功；失败发生在运行测试脚本前：`scripts/test_all.sh: Permission denied`，退出码 126。
+- 根因是 Windows 工作区提交时 shell 脚本保留为 `100644`。修复同时提交 Git 可执行位，并在 CI 中显式 `chmod +x scripts/*.sh`，避免未来工具再次丢失模式位。
+
 ## 下一步
 
 推送恢复后观察首次 Actions，修复真实 Linux 环境差异；与此同时等待 Android SDK 许可确认和 iOS 发布机信息。

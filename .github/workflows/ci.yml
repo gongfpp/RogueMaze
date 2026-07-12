@@ -29,6 +29,7 @@ jobs:
             --output godot.zip
           unzip -q godot.zip
           chmod +x "./${GODOT_EDITOR}"
+          chmod +x scripts/*.sh
       - name: Run all rules and scene compile tests
         env:
           GODOT_BIN: ${{ github.workspace }}/${{ env.GODOT_EDITOR }}
@@ -48,6 +49,7 @@ jobs:
             --output godot.zip
           unzip -q godot.zip
           chmod +x "./${GODOT_EDITOR}"
+          chmod +x scripts/*.sh
       - name: Restore export templates cache
         id: template-cache
         uses: actions/cache@v4
