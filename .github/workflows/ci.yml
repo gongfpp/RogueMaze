@@ -81,9 +81,12 @@ jobs:
           grep -q "RogueMaze smoke: build v0.4.0 platform=linux configuration=release commit=${GITHUB_SHA:0:7}" <<<"$smoke"
           grep -q 'RogueMaze smoke: legal notices ready' <<<"$smoke"
           grep -q 'RogueMaze smoke: main scene ready' <<<"$smoke"
+          cp docs/06-playtest/PLAYER_README.txt builds/linux/PLAYER_README.txt
+          printf 'Build: v0.4.0 · LINUX · %s\nCommit: %s\nConfiguration: release\n' "${GITHUB_SHA:0:7}" "$GITHUB_SHA" > builds/linux/BUILD.txt
+          (cd builds/linux && sha256sum RogueMaze.x86_64 > SHA256SUMS.txt && sha256sum --check SHA256SUMS.txt)
       - uses: actions/upload-artifact@v4
         with:
           name: RogueMaze-linux-x86_64-${{ github.sha }}
-          path: builds/linux/RogueMaze.x86_64
+          path: builds/linux/
           if-no-files-found: error
           retention-days: 14

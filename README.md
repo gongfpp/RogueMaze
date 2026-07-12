@@ -25,6 +25,7 @@
 - [游戏开发实战教学](docs/05-tutorial/README.md)
 - [零基础成员从这里开始](docs/05-tutorial/START_HERE.md)
 - [风险登记册](docs/02-production/RISK_REGISTER.md)
+- [5 人试玩工作区](docs/06-playtest/README.md)
 
 ## 当前可运行内容
 
@@ -34,6 +35,7 @@
 npm test
 .\scripts\test_all.ps1
 .\scripts\soak_test.ps1 -Runs 1000
+.\scripts\package_windows_playtest.ps1
 ```
 
 Node 原型见 [prototypes/rules](prototypes/rules/README.md)，Godot 规则位于 `game/domain`。Node 代码不会进入正式游戏包。

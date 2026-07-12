@@ -28,3 +28,4 @@
 - 本轮证明 Windows 成品和 Linux 打包路径；Linux 真实二进制由推送后的 Actions 再验证。
 - Android/iOS 生成步骤已接入，但只有完成 WP-025 的 SDK、签名和真机构建后，才能证明移动包中的实际显示。
 - dirty 星号不是错误，它提醒测试者这个包不是由纯净提交构建，不适合当正式候选。
+- 提交 `4618ac4` 触发 Actions 运行 `29189970763`；Ubuntu 使用真实 `GITHUB_SHA` 完成身份比对、规则/耐久、Linux 导出、成品 smoke 和 artifact 上传。

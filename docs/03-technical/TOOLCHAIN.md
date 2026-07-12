@@ -89,6 +89,16 @@ Android 发布版 AAB 需要 Gradle 构建和团队 release keystore；当前自
 npm run test:tooling
 ```
 
+## Windows 试玩包
+
+生成可交给测试者的 ZIP：
+
+```powershell
+.\scripts\package_windows_playtest.ps1
+```
+
+默认先完整测试和重新构建。只有确认 `builds/windows/RogueMaze.exe` 就是当前提交的成品时，才可用 `-SkipBuild` 做打包脚本调试。ZIP 包含 GUI 程序、玩家说明、Build 身份和 SHA-256；带 `*` 的 dirty 包不能作为正式测试批次。
+
 ## 为什么暂时不用 C#
 
 GDScript 足以承载当前 2D 规则，编辑和导出链更短。Godot 4 的 C# 移动端支持仍会增加 SDK 与兼容性变量。只有实测性能或团队技能证明值得时才重新评估。
