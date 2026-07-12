@@ -23,6 +23,7 @@ mkdir -p "$ROOT/.tools" "$ROOT/builds/ios"
 cp "$PRESETS" "$BACKUP"
 restore_presets() {
   mv -f "$BACKUP" "$PRESETS"
+  rm -f "$ROOT/assets/build/build_info.json"
 }
 trap restore_presets EXIT
 
@@ -30,6 +31,7 @@ if ! grep -q 'application/app_store_team_id=""' "$PRESETS"; then
   echo "Expected blank iOS Team ID placeholder was not found." >&2
   exit 2
 fi
+node "$ROOT/scripts/generate_build_info.mjs" --platform ios --configuration release
 sed -i '' "s/application\/app_store_team_id=\"\"/application\/app_store_team_id=\"$GODOT_IOS_TEAM_ID\"/" "$PRESETS"
 
 "$ROOT/scripts/test_all.sh"

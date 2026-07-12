@@ -34,6 +34,7 @@ var placement_pulse_cell := Vector2i.ZERO
 var audio_cues: AudioCues
 var persistence := PersistenceService.new()
 var reduced_motion := false
+var build_info := BuildInfo.load_current()
 
 
 func _ready() -> void:
@@ -52,6 +53,10 @@ func _ready() -> void:
 func _complete_smoke_test() -> void:
 	await get_tree().process_frame
 	await get_tree().process_frame
+	if not bool(build_info.get("embedded", false)):
+		push_error("Release smoke: embedded build identity is missing or invalid")
+		get_tree().quit(1)
+		return
 	for legal_path in [
 		"res://assets/legal/GODOT_LICENSE.txt",
 		"res://assets/legal/GODOT_COPYRIGHT.txt",
@@ -61,6 +66,12 @@ func _complete_smoke_test() -> void:
 			push_error("Release smoke: missing legal notice %s" % legal_path)
 			get_tree().quit(1)
 			return
+	print("RogueMaze smoke: build v%s platform=%s configuration=%s commit=%s" % [
+		build_info.version,
+		build_info.platform,
+		build_info.configuration,
+		build_info.commit_short,
+	])
 	print("RogueMaze smoke: legal notices ready")
 	print("RogueMaze smoke: main scene ready")
 	get_tree().quit(0)
@@ -506,6 +517,12 @@ func _draw_outcome_message(title: String, subtitle: String) -> void:
 		11,
 		MUTED_TEXT,
 	)
+	_draw_text_centered(
+		Vector2(size.x * 0.5, overlay.position.y + 166),
+		BuildInfo.display_label(build_info),
+		10,
+		MUTED_TEXT,
+	)
 
 
 func _format_run_time(total_seconds: float) -> String:
@@ -518,6 +535,7 @@ func _draw_credits_note() -> void:
 	var y := safe_rect.position.y + safe_rect.size.y * 0.38 + 142.0
 	_draw_text_centered(Vector2(center_x, y), "Built with Godot Engine 4.7 · MIT", 12, MUTED_TEXT)
 	_draw_text_centered(Vector2(center_x, y + 20.0), "Full notices are included in the game package", 11, MUTED_TEXT)
+	_draw_text_centered(Vector2(center_x, y + 40.0), BuildInfo.display_label(build_info), 10, MUTED_TEXT)
 
 
 func _draw_road(cell: Vector2i, road: Dictionary, color: Color) -> void:

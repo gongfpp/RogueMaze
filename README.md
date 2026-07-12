@@ -4,9 +4,9 @@
 
 ## 当前状态
 
-- 阶段：P0 立项与预制作
+- 阶段：P3 Alpha 收口
 - 当前版本：Alpha 基线 v0.4
-- 已完成：五节点 Alpha、三类陷阱与维修支路、数据驱动构筑、版本化存档、局后复盘、发行声明、Windows/Linux 成品 smoke、250 轮自动耐久
+- 已完成：五节点 Alpha、三类陷阱与维修支路、数据驱动构筑、版本化存档、局后复盘、可追溯构建、发行声明、Windows/Linux 成品 smoke、250 轮自动耐久
 - 当前连续工作：`WP-025` 移动 SDK/真机构建、四平台发布质量深化与真人试玩记录
 - 锁定技术栈：Godot 4.7 stable + GDScript + Compatibility 渲染
 - 远端仓库：`https://github.com/gongfpp/RogueMaze.git`

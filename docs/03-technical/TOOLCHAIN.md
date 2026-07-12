@@ -79,6 +79,16 @@ export GODOT_IOS_TEAM_ID=ABCDE12XYZ
 
 Android 发布版 AAB 需要 Gradle 构建和团队 release keystore；当前自动化只生成本地调试 APK，绝不把 keystore 或密码提交到仓库。
 
+## 构建身份
+
+四个平台的正式构建入口都会生成并嵌入 `assets/build/build_info.json`。暂停页和结算页显示版本、平台与短 Git SHA；`*` 表示构建时工作树有未提交修改，`DEBUG` 表示调试配置。
+
+不要手动维护这个 JSON，也不要提交它。构建脚本结束时会删除源文件；成品 smoke 会拒绝缺失、非法或与预期提交不一致的身份。生成规则的独立测试：
+
+```powershell
+npm run test:tooling
+```
+
 ## 为什么暂时不用 C#
 
 GDScript 足以承载当前 2D 规则，编辑和导出链更短。Godot 4 的 C# 移动端支持仍会增加 SDK 与兼容性变量。只有实测性能或团队技能证明值得时才重新评估。

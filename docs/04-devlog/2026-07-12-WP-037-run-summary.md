@@ -19,6 +19,7 @@
 - Godot 规则：227 条断言。
 - 自动耐久：250 次完整远征，37,253 条不变量检查。
 - `builds/ui-won.png`、`builds/ui-lost.png`：405×720 视觉检查通过；构建截图不提交仓库。
+- 提交 `383e92f` 触发 Actions 运行 `29189621691`；Ubuntu 规则、耐久、Linux 导出、成品 smoke 和 artifact 全部成功。
 
 ## 已知边界
 

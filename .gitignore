@@ -25,3 +25,6 @@ coverage/
 reports/
 .npm-cache/
 .tools/
+
+# Generated immediately before an export, then removed by the build script.
+assets/build/build_info.json

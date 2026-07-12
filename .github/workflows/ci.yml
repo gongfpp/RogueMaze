@@ -68,6 +68,7 @@ jobs:
       - name: Export Linux release
         run: |
           mkdir -p builds/linux
+          node scripts/generate_build_info.mjs --platform linux --configuration release
           output=$("./${GODOT_EDITOR}" --headless --path . --export-release Linux builds/linux/RogueMaze.x86_64 2>&1)
           printf '%s\n' "$output"
           if grep -Eq 'Cannot export project with preset|Project export for preset .* failed|SCRIPT ERROR|Failed to load script' <<<"$output"; then
@@ -77,6 +78,7 @@ jobs:
           chmod +x builds/linux/RogueMaze.x86_64
           smoke=$(builds/linux/RogueMaze.x86_64 --headless -- --smoke 2>&1)
           printf '%s\n' "$smoke"
+          grep -q "RogueMaze smoke: build v0.4.0 platform=linux configuration=release commit=${GITHUB_SHA:0:7}" <<<"$smoke"
           grep -q 'RogueMaze smoke: legal notices ready' <<<"$smoke"
           grep -q 'RogueMaze smoke: main scene ready' <<<"$smoke"
       - uses: actions/upload-artifact@v4

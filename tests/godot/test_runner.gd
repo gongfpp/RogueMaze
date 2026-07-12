@@ -18,6 +18,7 @@ func _run_all() -> void:
 	_test_runner_and_session()
 	_test_run_summary()
 	_test_audio_cues()
+	_test_build_info()
 	_test_persistence()
 	if failures > 0:
 		push_error("Godot rules: %d assertion(s), %d failure(s)" % [assertions, failures])
@@ -432,6 +433,45 @@ func _test_persistence() -> void:
 	recovered.load_all()
 	_expect_equal(recovered.progress, PersistenceService.default_progress(), "corrupt progress falls back safely")
 	_cleanup_persistence_test_files(service)
+
+
+func _test_build_info() -> void:
+	var valid := BuildInfo.sanitize({
+		"schema_version": 1,
+		"version": "0.4.0",
+		"commit": "383e92f23b237722abfaae70e10199fb404abb49",
+		"commit_short": "383e92f",
+		"platform": "linux",
+		"configuration": "release",
+		"built_at_utc": "2026-07-12T10:00:00.000Z",
+		"dirty": false,
+	})
+	_expect_equal(valid.embedded, true, "valid build info is accepted")
+	_expect_equal(valid.platform, "linux", "build platform survives sanitization")
+	_expect_equal(
+		BuildInfo.display_label(valid),
+		"v0.4.0 · LINUX · 383e92f",
+		"release build label is concise",
+	)
+	var debug := valid.duplicate()
+	debug.configuration = "debug"
+	debug.dirty = true
+	_expect_equal(
+		BuildInfo.display_label(debug),
+		"v0.4.0 · LINUX · 383e92f* · DEBUG",
+		"debug and dirty build are visible",
+	)
+	var invalid := BuildInfo.sanitize({
+		"schema_version": 1,
+		"version": "0.4.0",
+		"commit": "unknown",
+		"commit_short": "unknown",
+		"platform": "linux",
+		"configuration": "release",
+		"built_at_utc": "2026-07-12T10:00:00.000Z",
+		"dirty": false,
+	})
+	_expect_equal(invalid.embedded, false, "invalid build info falls back to development identity")
 
 
 func _cleanup_persistence_test_files(service: PersistenceService) -> void:

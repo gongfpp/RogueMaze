@@ -5,8 +5,9 @@
   "type": "module",
   "description": "Cross-platform road-building Roguelite game prototypes and tooling",
   "scripts": {
-    "test": "npm run test:rules",
+    "test": "npm run test:rules && npm run test:tooling",
     "test:rules": "node prototypes/rules/test/all.test.js",
+    "test:tooling": "node scripts/test/generate_build_info.test.mjs",
     "simulate:rules": "node prototypes/rules/run-scenarios.js"
   }
 }

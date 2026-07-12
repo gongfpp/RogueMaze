@@ -5,6 +5,17 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent $PSScriptRoot
+$buildInfoPath = Join-Path $projectRoot 'assets\build\build_info.json'
+
+function New-BuildInfo([string]$Platform, [string]$Configuration = 'release') {
+    $generatorOutput = & node "$PSScriptRoot\generate_build_info.mjs" --platform $Platform --configuration $Configuration
+    $generatorExitCode = $LASTEXITCODE
+    $generatorOutput | ForEach-Object { Write-Host $_ }
+    if ($generatorExitCode -ne 0 -or -not (Test-Path -LiteralPath $buildInfoPath)) {
+        throw "Build identity generation failed."
+    }
+    return Get-Content -LiteralPath $buildInfoPath -Raw | ConvertFrom-Json
+}
 
 function Invoke-GodotExport([string[]]$Arguments) {
     $output = & "$PSScriptRoot\run_godot.ps1" @Arguments 2>&1
@@ -20,7 +31,7 @@ function Invoke-GodotExport([string[]]$Arguments) {
     }
 }
 
-function Invoke-WindowsSmokeTest() {
+function Invoke-WindowsSmokeTest($ExpectedBuildInfo) {
     $smokeBinary = '.\builds\windows\RogueMaze.console.exe'
     if (-not (Test-Path -LiteralPath $smokeBinary)) {
         throw "Windows console wrapper is missing."
@@ -28,8 +39,11 @@ function Invoke-WindowsSmokeTest() {
     $output = & $smokeBinary --headless -- --smoke 2>&1
     $output | ForEach-Object { Write-Host $_ }
     $text = $output -join "`n"
+    $expectedBuildMarker = "RogueMaze smoke: build v{0} platform=windows configuration=release commit={1}" -f `
+        $ExpectedBuildInfo.version, $ExpectedBuildInfo.commit_short
     if (
         $LASTEXITCODE -ne 0 -or
+        -not $text.Contains($expectedBuildMarker) -or
         $text -notmatch 'RogueMaze smoke: legal notices ready' -or
         $text -notmatch 'RogueMaze smoke: main scene ready'
     ) {
@@ -47,16 +61,20 @@ try {
 
     if ($Desktop) {
         New-Item -ItemType Directory -Force builds\windows, builds\linux | Out-Null
+        $windowsBuildInfo = New-BuildInfo 'windows'
         Invoke-GodotExport @('--headless', '--path', '.', '--export-release', 'Windows Desktop', 'builds\windows\RogueMaze.exe')
-        Invoke-WindowsSmokeTest
+        Invoke-WindowsSmokeTest $windowsBuildInfo
+        $null = New-BuildInfo 'linux'
         Invoke-GodotExport @('--headless', '--path', '.', '--export-release', 'Linux', 'builds\linux\RogueMaze.x86_64')
     }
 
     if ($Android) {
         New-Item -ItemType Directory -Force builds\android | Out-Null
+        $null = New-BuildInfo 'android' 'debug'
         Invoke-GodotExport @('--headless', '--path', '.', '--export-debug', 'Android', 'builds\android\RogueMaze-debug.apk')
     }
 }
 finally {
+    Remove-Item -LiteralPath $buildInfoPath -Force -ErrorAction SilentlyContinue
     Pop-Location
 }
