@@ -57,6 +57,7 @@ func _run_winning_expedition(session: GameSession, run_index: int) -> void:
 		session.content.starter_deck.size(),
 		"run %d resets deck size" % run_index,
 	)
+	_expect_equal(session.roads_placed, 0, "run %d resets placement summary" % run_index)
 	for node_index in range(GameSession.NODE_COUNT):
 		# Hazard behavior has focused unit tests. This route isolates long-run session progression.
 		session.hazards.clear()
@@ -84,6 +85,16 @@ func _run_winning_expedition(session: GameSession, run_index: int) -> void:
 			"run %d node %d emits completion event" % [run_index, node_index],
 		)
 		if expected_state == GameSession.WON:
+			_expect_equal(
+				session.roads_placed,
+				(GameSession.BOARD_SIZE.x - 1) * GameSession.NODE_COUNT,
+				"run %d records every placed road" % run_index,
+			)
+			_expect_equal(
+				session.rewards_added + session.rewards_upgraded + session.rewards_removed,
+				GameSession.NODE_COUNT - 1,
+				"run %d records every reward" % run_index,
+			)
 			break
 		_expect_true(
 			not session.reward_options.is_empty(),

@@ -53,6 +53,14 @@ var reward_options: Array[Dictionary] = []
 var failure_reason: StringName = &""
 var events: Array[StringName] = []
 var next_card_instance_id := 1
+var elapsed_seconds := 0.0
+var roads_placed := 0
+var invalid_placements := 0
+var damage_taken := 0
+var health_recovered := 0
+var rewards_added := 0
+var rewards_upgraded := 0
+var rewards_removed := 0
 
 
 func _init(p_content = null) -> void:
@@ -64,6 +72,14 @@ func reset() -> void:
 	events.clear()
 	run_deck.clear()
 	next_card_instance_id = 1
+	elapsed_seconds = 0.0
+	roads_placed = 0
+	invalid_placements = 0
+	damage_taken = 0
+	health_recovered = 0
+	rewards_added = 0
+	rewards_upgraded = 0
+	rewards_removed = 0
 	for road_id in content.starter_deck:
 		run_deck.append(_create_card(road_id))
 	node_index = 0
@@ -127,6 +143,7 @@ func _configure_hazards() -> void:
 func update(delta: float) -> void:
 	if paused or state != PLAYING:
 		return
+	elapsed_seconds += maxf(0.0, delta)
 	if countdown > 0.0:
 		countdown = maxf(0.0, countdown - delta)
 		return
@@ -184,7 +201,9 @@ func _apply_entered_cell_hazard(position: Vector2i) -> void:
 	var hazard: Dictionary = hazards[position]
 	if hazard.type == SPIKES and not hazard.spent:
 		hazard.spent = true
-		health -= int(hazard.get("damage", 1))
+		var spike_damage := int(hazard.get("damage", 1))
+		damage_taken += mini(maxi(health, 0), spike_damage)
+		health -= spike_damage
 		events.append(EVENT_SPIKE_HIT)
 		if health <= 0:
 			failure_reason = NO_HEALTH
@@ -196,7 +215,9 @@ func _apply_entered_cell_hazard(position: Vector2i) -> void:
 		events.append(EVENT_RUN_LOST)
 	elif hazard.type == STEAM_VENT and not hazard.spent and is_steam_active(hazard):
 		hazard.spent = true
-		health -= int(hazard.damage)
+		var steam_damage := int(hazard.damage)
+		damage_taken += mini(maxi(health, 0), steam_damage)
+		health -= steam_damage
 		events.append(EVENT_STEAM_HIT)
 		if health <= 0:
 			failure_reason = NO_HEALTH
@@ -204,7 +225,9 @@ func _apply_entered_cell_hazard(position: Vector2i) -> void:
 			events.append(EVENT_RUN_LOST)
 	elif hazard.type == REPAIR_PAD and not hazard.spent and health < max_health:
 		hazard.spent = true
+		var health_before_repair := health
 		health = mini(max_health, health + int(hazard.healing))
+		health_recovered += health - health_before_repair
 		events.append(EVENT_REPAIRED)
 
 
@@ -228,10 +251,12 @@ func choose_reward(index: int) -> bool:
 	match option.type:
 		REWARD_ADD:
 			run_deck.append(_create_card(option.road_id))
+			rewards_added += 1
 		REWARD_UPGRADE:
 			var card := _find_card(option.card_id)
 			if card == null or not card.upgrade():
 				return false
+			rewards_upgraded += 1
 		REWARD_REMOVE:
 			if run_deck.size() <= HAND_SIZE:
 				return false
@@ -239,6 +264,7 @@ func choose_reward(index: int) -> bool:
 			if card == null:
 				return false
 			run_deck.erase(card)
+			rewards_removed += 1
 		_:
 			return false
 	node_index += 1
@@ -329,8 +355,11 @@ func validate_selected(position: Vector2i) -> Dictionary:
 
 
 func place_selected(position: Vector2i) -> Dictionary:
+	var active_attempt := state == PLAYING and not paused
 	var result := validate_selected(position)
 	if not result.ok:
+		if active_attempt:
+			invalid_placements += 1
 		return result
 	result = board.place(
 		selected_definition(),
@@ -340,7 +369,10 @@ func place_selected(position: Vector2i) -> Dictionary:
 		hand[selected_card_index].level,
 	)
 	if not result.ok:
+		if active_attempt:
+			invalid_placements += 1
 		return result
+	roads_placed += 1
 	var played_card: CardState = hand[selected_card_index]
 	deck.discard(played_card)
 	hand[selected_card_index] = deck.draw()
@@ -357,3 +389,16 @@ func set_paused(value: bool) -> bool:
 		return false
 	paused = value
 	return true
+
+
+func run_summary() -> Dictionary:
+	return {
+		"elapsed_seconds": elapsed_seconds,
+		"roads_placed": roads_placed,
+		"invalid_placements": invalid_placements,
+		"damage_taken": damage_taken,
+		"health_recovered": health_recovered,
+		"rewards_added": rewards_added,
+		"rewards_upgraded": rewards_upgraded,
+		"rewards_removed": rewards_removed,
+	}

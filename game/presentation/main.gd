@@ -223,7 +223,7 @@ func _recalculate_layout() -> void:
 	sound_rect = Rect2(Vector2(left + 160.0, hand_y - 54.0), Vector2(104.0, 42.0))
 	motion_rect = Rect2(Vector2(left + 274.0, hand_y - 54.0), Vector2(maxf(92.0, safe_rect.size.x - padding * 2.0 - 274.0), 42.0))
 	pause_rect = Rect2(Vector2(safe_rect.end.x - padding - 116.0, safe_rect.position.y + 34.0), Vector2(116.0, 46.0))
-	restart_rect = Rect2(Vector2(safe_rect.position.x + (safe_rect.size.x - 220.0) * 0.5, safe_rect.position.y + safe_rect.size.y * 0.58), Vector2(220.0, 58.0))
+	restart_rect = Rect2(Vector2(safe_rect.position.x + (safe_rect.size.x - 220.0) * 0.5, safe_rect.position.y + safe_rect.size.y * 0.65), Vector2(220.0, 58.0))
 	reward_rects.clear()
 	var reward_gap := 10.0
 	var reward_width := (safe_rect.size.x - padding * 2.0 - reward_gap * 2.0) / 3.0
@@ -382,13 +382,13 @@ func _draw_state_overlay() -> void:
 	elif session.state == GameSession.REWARD:
 		_draw_reward_overlay()
 	elif session.state == GameSession.WON:
-		_draw_center_message(
+		_draw_outcome_message(
 			"EXPEDITION COMPLETE",
-			"All three nodes cleared · Wins %d" % persistence.progress.expeditions_won,
+			"All five nodes cleared · Wins %d" % persistence.progress.expeditions_won,
 		)
 		_draw_button(restart_rect, "PLAY AGAIN", true)
 	elif session.state == GameSession.LOST:
-		_draw_center_message("RUN FAILED", _failure_summary())
+		_draw_outcome_message("RUN FAILED", _failure_summary())
 		_draw_button(restart_rect, "TRY AGAIN", true)
 
 
@@ -476,6 +476,41 @@ func _draw_center_message(title: String, subtitle: String) -> void:
 	draw_rect(overlay, Color(0.03, 0.05, 0.08, 0.92), true)
 	_draw_text_centered(Vector2(size.x * 0.5, overlay.position.y + 70), title, 34, SELECTED_COLOR)
 	_draw_text_centered(Vector2(size.x * 0.5, overlay.position.y + 108), subtitle, 17, TEXT_COLOR)
+
+
+func _draw_outcome_message(title: String, subtitle: String) -> void:
+	var overlay := Rect2(Vector2(0, size.y * 0.31), Vector2(size.x, size.y * 0.43))
+	draw_rect(overlay, Color(0.03, 0.05, 0.08, 0.94), true)
+	_draw_text_centered(Vector2(size.x * 0.5, overlay.position.y + 54), title, 30, SELECTED_COLOR)
+	_draw_text_centered(Vector2(size.x * 0.5, overlay.position.y + 86), subtitle, 15, TEXT_COLOR)
+	var summary := session.run_summary()
+	_draw_text_centered(
+		Vector2(size.x * 0.5, overlay.position.y + 118),
+		"TIME %s  ·  ROADS %d  ·  MISPLAYS %d" % [
+			_format_run_time(float(summary.elapsed_seconds)),
+			int(summary.roads_placed),
+			int(summary.invalid_placements),
+		],
+		12,
+		MUTED_TEXT,
+	)
+	_draw_text_centered(
+		Vector2(size.x * 0.5, overlay.position.y + 142),
+		"DMG %d  ·  HEAL %d  ·  DECK +%d  ARMOR %d  CUT %d" % [
+			int(summary.damage_taken),
+			int(summary.health_recovered),
+			int(summary.rewards_added),
+			int(summary.rewards_upgraded),
+			int(summary.rewards_removed),
+		],
+		11,
+		MUTED_TEXT,
+	)
+
+
+func _format_run_time(total_seconds: float) -> String:
+	var whole_seconds := maxi(0, floori(total_seconds))
+	return "%02d:%02d" % [whole_seconds / 60, whole_seconds % 60]
 
 
 func _draw_credits_note() -> void:

@@ -13,9 +13,11 @@ func _capture() -> void:
 	await process_frame
 
 	var mode := "start"
-	var user_args := OS.get_cmdline_user_args()
-	if not user_args.is_empty():
-		mode = user_args[0]
+	var arguments := OS.get_cmdline_user_args() + OS.get_cmdline_args()
+	for candidate in ["reward", "hazards", "pause", "won", "lost", "start"]:
+		if arguments.has(candidate):
+			mode = candidate
+			break
 	var session: GameSession = scene.get("session")
 	match mode:
 		"reward":
@@ -27,6 +29,23 @@ func _capture() -> void:
 			session.countdown = 0.0
 		"pause":
 			session.set_paused(true)
+		"won":
+			session.elapsed_seconds = 137.0
+			session.roads_placed = 35
+			session.invalid_placements = 3
+			session.damage_taken = 2
+			session.health_recovered = 1
+			session.rewards_added = 2
+			session.rewards_upgraded = 1
+			session.rewards_removed = 1
+			session.state = GameSession.WON
+		"lost":
+			session.elapsed_seconds = 48.0
+			session.roads_placed = 9
+			session.invalid_placements = 4
+			session.damage_taken = 2
+			session.failure_reason = GameSession.ROAD_MISSING
+			session.state = GameSession.LOST
 		"start":
 			pass
 		_:
@@ -39,7 +58,8 @@ func _capture() -> void:
 
 
 func _save_capture(file_name: String) -> void:
-	for frame in 8:
+	# Give the background texture and procedural draw pass time to settle on slower drivers.
+	for frame in 16:
 		await process_frame
 	await RenderingServer.frame_post_draw
 	var image := root.get_texture().get_image()

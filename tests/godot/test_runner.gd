@@ -16,6 +16,7 @@ func _run_all() -> void:
 	_test_deck_cycles()
 	_test_scenarios()
 	_test_runner_and_session()
+	_test_run_summary()
 	_test_audio_cues()
 	_test_persistence()
 	if failures > 0:
@@ -344,6 +345,42 @@ func _test_audio_cues() -> void:
 	_expect_equal(tone.mix_rate, AudioCues.MIX_RATE, "procedural cue uses expected mix rate")
 	_expect_equal(tone.stereo, false, "procedural cue is mono")
 	_expect_true(tone.data.size() > 1000, "procedural cue contains samples")
+
+
+func _test_run_summary() -> void:
+	var session := GameSession.new()
+	session.update(1.0)
+	_expect_equal(session.elapsed_seconds, 1.0, "active run time is counted")
+	session.set_paused(true)
+	session.update(30.0)
+	_expect_equal(session.elapsed_seconds, 1.0, "paused time is excluded")
+	session.set_paused(false)
+	_expect_equal(session.place_selected(GameSession.START).ok, false, "invalid placement is rejected")
+	_expect_equal(session.invalid_placements, 1, "active invalid placement is counted")
+	_expect_true(session.place_selected(Vector2i(1, 2)).ok, "valid placement is accepted for summary")
+	_expect_equal(session.roads_placed, 1, "successful placement is counted")
+
+	var hazard_session := GameSession.new()
+	hazard_session.node_index = 1
+	hazard_session._start_node()
+	hazard_session._apply_entered_cell_hazard(Vector2i(3, 2))
+	_expect_equal(hazard_session.damage_taken, 1, "actual spike damage is counted")
+	hazard_session.node_index = 2
+	hazard_session.health = 2
+	hazard_session._start_node()
+	hazard_session._apply_entered_cell_hazard(Vector2i(4, 0))
+	_expect_equal(hazard_session.health_recovered, 1, "actual repair amount is counted")
+
+	var reward_session := GameSession.new()
+	reward_session.state = GameSession.REWARD
+	reward_session._build_reward_options([RoadCatalog.BRIDGE])
+	_expect_true(reward_session.choose_reward(0), "summary add reward applies")
+	_expect_equal(reward_session.rewards_added, 1, "add reward is counted")
+	var summary := reward_session.run_summary()
+	_expect_equal(summary.roads_placed, 0, "summary exposes placement count")
+	reward_session.reset()
+	_expect_equal(reward_session.rewards_added, 0, "reset clears reward summary")
+	_expect_equal(reward_session.elapsed_seconds, 0.0, "reset clears elapsed time")
 
 
 func _test_persistence() -> void:
