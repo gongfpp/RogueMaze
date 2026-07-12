@@ -8,10 +8,13 @@
 
 - 当前终端的 PATH 没有 `adb`，`ANDROID_HOME`/`ANDROID_SDK_ROOT` 为空。
 - 仓库 `.tools/android-sdk`、Android Studio 默认 SDK 路径和几个常见自定义目录均不存在。
-- Windows PnP/CIM 的已连接设备中没有 Android、ADB 或 WPD 手机条目；只出现了无关的 USB 麦克风。
-- 平台状态从原来的 5/12 细分为 5/14：新增 `ADB executable`、`Authorized device` 两项，当前均为 NO。
+- 第一轮按 Android/ADB/WPD 名称过滤没有发现手机；随后枚举全部 USB VID，找到状态为 OK 的 `Redmi Note 8 Pro`（Google USB VID `18D1`）。这说明驱动链存在，首次过滤只是漏检。
+- Android Studio/Unity 完整 SDK 不存在，但已安装 SideQuest 带有 ADB 34.0.5。项目改为可发现这个合法现有工具，不重复下载。
+- `adb devices -l` 显示手机为 `device`，不是 unauthorized：产品 `begonia`，RSA 已授权。
+- 真机为 Xiaomi Redmi Note 8 Pro、`arm64-v8a`、API 29；符合当前最低 API 24 和 arm64 APK 预设。包名查询确认 RogueMaze 尚未安装。
+- 平台状态从原来的 5/12 细分为 7/14：新增的 `ADB executable`、`Authorized device` 已为 YES；SDK root、Build Tools、Platform 35、NDK 仍为 NO。
 
-这意味着“手机上打开 USB 调试”与“本终端能部署 APK”之间仍缺工具和/或驱动链路，不能伪造真机通过。
+这意味着 USB/驱动/ADB/RSA/ABI 门禁已经通过；当前唯一 Android 工具链缺口是用于生成 APK 的完整 SDK，仍不能伪造安装通过。
 
 ## 已完成的工程准备
 
@@ -24,12 +27,12 @@
 
 ## 当前验证
 
-脚本在缺少 ADB 的真实环境中按预期快速失败，并明确给出两条合法路径：设置已有 SDK，或由有权主体阅读许可后运行安装脚本。尚未生成 APK、安装、启动或采集真机截图。
+脚本先在缺少 ADB 的搜索范围中按预期快速失败；加入 SideQuest 路径后，平台检查能看到 ADB 34.0.5 和唯一已授权真机。`-SkipInstall` 已真实跑到设备属性和 launcher 阶段，并因包尚未安装而准确报告 `No activities found`，没有把 ADB 的正常 stderr 提示误判成 PowerShell 异常。尚未生成 APK、安装、启动或采集真机截图。
 
 ## 下一门禁
 
 1. 用户明确确认 Android SDK 许可后，安装仓库锁定的 Platform Tools、Build Tools 35.0.1、Platform 35、NDK r28b。
-2. Windows 能在 PnP 和 `adb devices -l` 中看到手机，手机端接受 RSA 指纹。
+2. 已完成：Windows 与 `adb devices -l` 能看到手机，RSA 已授权，arm64/API 29 已确认。
 3. 构建 APK，运行 `deploy_android_device.ps1 -CaptureScreenshot`。
 4. 人工完成放路、旋转、奖励、暂停/切后台、结算和重开；记录 Build、设备 API、截图、日志与 20 分钟结果。
 

@@ -13,10 +13,14 @@ function Resolve-AdbPath() {
     $command = Get-Command adb -ErrorAction SilentlyContinue
     if ($command) { return $command.Source }
     $candidates = @(
+        'C:\Program Files\SideQuest\resources\app.asar.unpacked\build\platform-tools\adb.exe',
+        (Join-Path $env:USERPROFILE 'AppData\Roaming\SideQuest\platform-tools\adb.exe'),
         $(if ($env:ANDROID_HOME) { Join-Path $env:ANDROID_HOME 'platform-tools\adb.exe' }),
         $(if ($env:ANDROID_SDK_ROOT) { Join-Path $env:ANDROID_SDK_ROOT 'platform-tools\adb.exe' }),
         (Join-Path $projectRoot '.tools\android-sdk\platform-tools\adb.exe'),
-        (Join-Path $env:LOCALAPPDATA 'Android\Sdk\platform-tools\adb.exe')
+        (Join-Path $env:LOCALAPPDATA 'Android\Sdk\platform-tools\adb.exe'),
+        (Join-Path $env:ProgramFiles 'SideQuest\resources\app.asar.unpacked\build\platform-tools\adb.exe'),
+        (Join-Path $env:APPDATA 'SideQuest\platform-tools\adb.exe')
     ) | Where-Object { $_ }
     foreach ($candidate in $candidates) {
         if (Test-Path -LiteralPath $candidate) { return $candidate }
@@ -31,8 +35,15 @@ or set ANDROID_HOME/ANDROID_SDK_ROOT to an existing SDK.
 function Invoke-Adb([string[]]$Arguments) {
     $prefix = @()
     if ($script:deviceSerial) { $prefix = @('-s', $script:deviceSerial) }
-    $output = & $script:adbPath @prefix @Arguments 2>&1
-    $exitCode = $LASTEXITCODE
+    $previousErrorPreference = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    try {
+        $output = & $script:adbPath @prefix @Arguments 2>&1
+        $exitCode = $LASTEXITCODE
+    }
+    finally {
+        $ErrorActionPreference = $previousErrorPreference
+    }
     $output | ForEach-Object { Write-Host $_ }
     if ($exitCode -ne 0) {
         throw "ADB command failed: adb $($Arguments -join ' ')"
@@ -44,8 +55,16 @@ Push-Location $projectRoot
 try {
     $script:adbPath = Resolve-AdbPath
     Write-Host "ADB: $script:adbPath"
-    $deviceOutput = & $script:adbPath devices -l 2>&1
-    if ($LASTEXITCODE -ne 0) { throw "adb devices failed." }
+    $previousErrorPreference = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    try {
+        $deviceOutput = & $script:adbPath devices -l 2>&1
+        $deviceExitCode = $LASTEXITCODE
+    }
+    finally {
+        $ErrorActionPreference = $previousErrorPreference
+    }
+    if ($deviceExitCode -ne 0) { throw "adb devices failed." }
     $deviceOutput | ForEach-Object { Write-Host $_ }
     $devices = @()
     foreach ($line in $deviceOutput) {

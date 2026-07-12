@@ -16,4 +16,4 @@
 | R-010 | 长项目中策划、代码和日志失去同步 | 中 | 中 | DoD 强制文档更新，工作包 ID 串联 | 文档无法对应当前行为 | MITIGATING |
 | R-011 | Windows/Linux 与移动端输入和布局分叉 | 中 | 中 | 核心规则共用；输入转成统一命令；平台冒烟自动化 | 同一操作在平台间行为不同 | OPEN |
 | R-012 | 持续开发时提交过大、难以回退 | 中 | 高 | 每轮至少提交，长迭代按可运行检查点提交；禁止强推覆盖历史 | 一个提交混入多个未验证模块 | MITIGATING |
-| R-013 | Android 手机已开调试但 Windows/ADB 工具链不可见 | 高 | 高 | 独立检查驱动、ADB、RSA、SDK；部署脚本按层失败并保留报告 | `adb devices` 无设备或 unauthorized | OPEN |
+| R-013 | Android 手机已开调试但 Windows/ADB 工具链不可见 | 高 | 高 | 完整 USB VID 枚举并复用 SideQuest ADB；独立检查驱动、RSA、SDK | `adb devices` 无设备或 unauthorized | MITIGATED |

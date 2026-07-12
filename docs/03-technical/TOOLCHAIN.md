@@ -76,7 +76,7 @@ APK 生成后，安装到唯一已授权的 arm64 手机并采集 PID 日志/可
 .\scripts\deploy_android_device.ps1 -CaptureScreenshot
 ```
 
-脚本会从 PATH、`ANDROID_HOME`、`ANDROID_SDK_ROOT`、仓库 `.tools/android-sdk` 和 Android Studio 默认目录找 ADB。多台设备必须传 `-Serial`。自动启动通过后应用保持运行，继续按 [Android 真机试玩检查表](../06-playtest/ANDROID_DEVICE_CHECKLIST.md) 做人工验收。
+脚本会从 PATH、`ANDROID_HOME`、`ANDROID_SDK_ROOT`、仓库 `.tools/android-sdk`、Android Studio 默认目录和已安装 SideQuest 的 Platform Tools 找 ADB。多台设备必须传 `-Serial`。自动启动通过后应用保持运行，继续按 [Android 真机试玩检查表](../06-playtest/ANDROID_DEVICE_CHECKLIST.md) 做人工验收。
 
 macOS 发布机设置 10 位 Apple Team ID 后运行：
 

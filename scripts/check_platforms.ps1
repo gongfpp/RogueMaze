@@ -23,10 +23,14 @@ function Find-Adb() {
     $command = Get-Command adb -ErrorAction SilentlyContinue
     if ($command) { return $command.Source }
     $candidates = @(
+        'C:\Program Files\SideQuest\resources\app.asar.unpacked\build\platform-tools\adb.exe',
+        (Join-Path $env:USERPROFILE 'AppData\Roaming\SideQuest\platform-tools\adb.exe'),
         $(if ($env:ANDROID_HOME) { Join-Path $env:ANDROID_HOME 'platform-tools\adb.exe' }),
         $(if ($env:ANDROID_SDK_ROOT) { Join-Path $env:ANDROID_SDK_ROOT 'platform-tools\adb.exe' }),
         (Join-Path $projectRoot '.tools\android-sdk\platform-tools\adb.exe'),
-        (Join-Path $env:LOCALAPPDATA 'Android\Sdk\platform-tools\adb.exe')
+        (Join-Path $env:LOCALAPPDATA 'Android\Sdk\platform-tools\adb.exe'),
+        (Join-Path $env:ProgramFiles 'SideQuest\resources\app.asar.unpacked\build\platform-tools\adb.exe'),
+        (Join-Path $env:APPDATA 'SideQuest\platform-tools\adb.exe')
     ) | Where-Object { $_ }
     foreach ($candidate in $candidates) {
         if (Test-Path -LiteralPath $candidate) { return $candidate }
