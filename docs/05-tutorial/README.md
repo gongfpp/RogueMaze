@@ -26,7 +26,8 @@
 16. [第 15 章：结算数据不是为了监视玩家](15-run-summary-for-playtests.md)
 17. [第 16 章：先问“你玩的到底是哪一个包”](16-traceable-builds.md)
 18. [第 17 章：第一次把游戏交给 5 个陌生玩家](17-first-five-player-playtest.md)
-19. 后续章节按里程碑继续补充，不预写未经实践的结论。
+19. [第 18 章：手机开了 USB 调试，为什么电脑还是看不到](18-android-adb-device-gate.md)
+20. 后续章节按里程碑继续补充，不预写未经实践的结论。
 
 ## 每章标准
 

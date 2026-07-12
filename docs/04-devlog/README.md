@@ -26,6 +26,7 @@
 - [2026-07-12：WP-033 五节点 Alpha](2026-07-12-WP-033-five-node-alpha.md)
 - [2026-07-12：WP-025A 移动导出基线](2026-07-12-WP-025A-mobile-export-baseline.md)
 - [2026-07-12：WP-025B 生命周期与 CI](2026-07-12-WP-025B-lifecycle-and-ci.md)
+- [2026-07-12：WP-025C Android 真机部署门禁（进行中）](2026-07-12-WP-025C-android-device-harness.md)
 - [2026-07-12：WP-034 维修支路](2026-07-12-WP-034-repair-routes.md)
 - [2026-07-12：WP-035 发行声明与成品冒烟](2026-07-12-WP-035-release-notices.md)
 - [2026-07-12：WP-036 自动耐久回归](2026-07-12-WP-036-automated-soak.md)
