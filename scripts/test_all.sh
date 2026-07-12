@@ -22,3 +22,13 @@ if printf '%s\n' "$TEST_OUTPUT" | grep -Eq 'SCRIPT ERROR|Failed to load script';
   exit 1
 fi
 printf '%s\n' "$TEST_OUTPUT" | grep -Eq 'Godot rules: [0-9]+ assertion\(s\), all passed'
+
+SOAK_OUTPUT=$("$PROJECT_ROOT/scripts/run_godot.sh" --headless --path . --script tests/godot/soak_runner.gd -- --runs=250 2>&1) || {
+  printf '%s\n' "$SOAK_OUTPUT"
+  exit 1
+}
+printf '%s\n' "$SOAK_OUTPUT"
+if printf '%s\n' "$SOAK_OUTPUT" | grep -Eq 'SCRIPT ERROR|Failed to load script'; then
+  exit 1
+fi
+printf '%s\n' "$SOAK_OUTPUT" | grep -Eq 'Godot soak: 250 expedition\(s\), [0-9]+ invariant check\(s\), all passed'

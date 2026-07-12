@@ -6,7 +6,7 @@
 
 - 阶段：P0 立项与预制作
 - 当前版本：Alpha 基线 v0.4
-- 已完成：五节点 Alpha、三类陷阱与维修支路、数据驱动构筑、版本化存档、发行声明、Windows/Linux 成品 smoke
+- 已完成：五节点 Alpha、三类陷阱与维修支路、数据驱动构筑、版本化存档、发行声明、Windows/Linux 成品 smoke、250 轮自动耐久
 - 当前连续工作：`WP-025` 移动 SDK/真机构建、四平台发布质量深化与真人试玩记录
 - 锁定技术栈：Godot 4.7 stable + GDScript + Compatibility 渲染
 - 远端仓库：`https://github.com/gongfpp/RogueMaze.git`
@@ -33,11 +33,12 @@
 ```powershell
 npm test
 .\scripts\test_all.ps1
+.\scripts\soak_test.ps1 -Runs 1000
 ```
 
 Node 原型见 [prototypes/rules](prototypes/rules/README.md)，Godot 规则位于 `game/domain`。Node 代码不会进入正式游戏包。
 
-当前操作：点击或拖动手牌到绿色格子；`R`/右键旋转；数字键 `1–4` 选牌；空格暂停。`SFX ON/OFF` 切换操作音效。角色会在 4 秒后自动出发。完成三个节点即赢得远征；节点间选择一张奖励牌，途中需要处理尖刺和定时落石。
+当前操作：点击或拖动手牌到绿色格子；`R`/右键旋转；数字键 `1–4` 选牌；空格暂停。`SFX ON/OFF` 切换操作音效。角色会在 4 秒后自动出发。完成五个节点即赢得远征；节点间可加牌、升级或移除，途中需要处理尖刺、周期蒸汽、落石与维修支路。
 
 ## 每轮协作约定
 
